@@ -76,7 +76,7 @@ export class Engineer {
     this.hips.add(pelvis);
     // torso (lathe profile, flattened front-to-back)
     const prof = [
-      [0.0, -0.02], [0.155, 0.0], [0.168, 0.1], [0.172, 0.2], [0.19, 0.32], [0.195, 0.4], [0.17, 0.47], [0.11, 0.515], [0.06, 0.53], [0.0, 0.535],
+      [0.0, -0.02], [0.165, 0.0], [0.178, 0.1], [0.185, 0.2], [0.205, 0.32], [0.212, 0.4], [0.19, 0.465], [0.12, 0.512], [0.065, 0.53], [0.0, 0.535],
     ].map(([r, y]) => new THREE.Vector2(r, y));
     const torso = new THREE.Mesh(new THREE.LatheGeometry(prof, 40), m.suit);
     torso.scale.z = 0.66;
@@ -147,17 +147,21 @@ export class Engineer {
     // arms
     const mkArm = (side: number): Arm => {
       const shoulder = new THREE.Group();
-      shoulder.position.set(side * 0.205, 0.445, 0);
+      shoulder.position.set(side * 0.222, 0.44, 0);
       this.spine.add(shoulder);
-      shoulder.add(at(sph(0.074, m.suit, 20, 14), 0, -0.01, 0));
-      const upper = capsule(0.06, 0.2, m.suit);
+      shoulder.add(at(sph(0.082, m.suit, 20, 14), 0, -0.01, 0));
+      const upper = capsule(0.068, 0.2, m.suit);
       upper.position.y = -0.15;
       shoulder.add(upper);
       const elbow = new THREE.Group();
       elbow.position.y = -0.3;
       shoulder.add(elbow);
-      elbow.add(sph(0.056, m.suit, 16, 12));
-      const fore = new THREE.Mesh(new THREE.CylinderGeometry(0.047, 0.055, 0.2, 18), m.suit);
+      elbow.add(sph(0.063, m.suit, 16, 12));
+      const crease = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.012, 8, 20), m.suit);
+      crease.rotation.x = Math.PI / 2;
+      crease.position.y = -0.03;
+      elbow.add(crease);
+      const fore = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.062, 0.2, 18), m.suit);
       fore.position.y = -0.11;
       elbow.add(fore);
       const cuff = cyl(0.049, 0.046, 0.075, m.nitrile, 18);
@@ -191,14 +195,20 @@ export class Engineer {
       const hip = new THREE.Group();
       hip.position.set(side * 0.098, -0.03, 0);
       this.hips.add(hip);
-      const thigh = capsule(0.088, 0.3, m.suit);
+      const thigh = capsule(0.095, 0.3, m.suit);
       thigh.position.y = -0.21;
       hip.add(thigh);
       const knee = new THREE.Group();
       knee.position.y = -0.44;
       hip.add(knee);
-      knee.add(sph(0.072, m.suit, 16, 12));
-      const shin = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.06, 0.36, 20), m.suit);
+      knee.add(sph(0.078, m.suit, 16, 12));
+      for (const dy of [-0.04, 0.03]) {
+        const kc = new THREE.Mesh(new THREE.TorusGeometry(0.074, 0.013, 8, 22), m.suit);
+        kc.rotation.x = Math.PI / 2;
+        kc.position.y = dy;
+        knee.add(kc);
+      }
+      const shin = new THREE.Mesh(new THREE.CylinderGeometry(0.076, 0.066, 0.36, 20), m.suit);
       shin.position.y = -0.2;
       knee.add(shin);
       const ankle = new THREE.Group();
@@ -322,7 +332,7 @@ export class Engineer {
       const arm = this.arms[i];
       let sx = AA * Math.sin(p);
       let sz = side * (0.09 + 0.04 * runT);
-      let el = -(0.18 + 0.25 * walkT + 0.85 * runT) - Math.max(0, Math.sin(p)) * 0.15 * walkT;
+      let el = -(0.3 + 0.15 * walkT + 0.85 * runT) - Math.max(0, Math.sin(p)) * 0.15 * walkT;
       let wr = 0;
       // carry pose (both forearms forward, hands under the load)
       sx = lerp(sx, -0.55 + Math.sin(p) * 0.04 * walkT, this.carryT);

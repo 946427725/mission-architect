@@ -1,15 +1,18 @@
 # Mission Architect
 
-**Design a real space mission. Physics decides if it works.**
+**Build a real spacecraft by hand. Physics decides if it flies.**
 
-A browser game for the NASA Space Apps Challenge 2026 *Space Mission Design Game* challenge. Students (solo or a team of up to 4) choose a science objective, then design a complete interplanetary mission: launch window, spacecraft, instruments, communications, budget and rocket. They fly it in 3D, survive events taken from real missions, and get a report explaining *why* it succeeded or failed, which single change would have helped most, and how it compares with the real NASA mission.
+A 3D browser game for the NASA Space Apps Challenge 2026 *Space Mission Design Game* challenge. You play a clean-room engineer in a spacecraft assembly high bay. Walk to the racks, pick real hardware off the shelves (nuclear batteries, solar arrays, dishes, instruments), carry it to the spacecraft on the stand and install it; the overhead crane moves the big parts. Every part changes mass, power, Δv, budget, data and science, and the gauges show the trade-off before you commit. Pick a launch date at the Flight Dynamics desk (real Lambert trajectories from NASA/JPL planet positions), choose a rocket, pass the GO/NO-GO poll at the launch gate, watch the launch from the pad, fly the mission through events taken from real missions, and get a report that explains *why* it succeeded or failed and how it compares with Perseverance, Juno or New Horizons. Solo or a team of up to 4, each player an engineer with their own role and stations.
 
 ## Judge quick path (about 2 minutes)
 
-1. **Start a mission → Red Horizon → Fly NASA's design** (loads a Perseverance-style rover on the Launch step).
-2. **Press and hold Launch.** Watch the countdown, the 3D cruise, and the Mars landing sequence.
+1. **Play → Red Horizon → Fly NASA's design.** A Perseverance-style rover is on the stand and every station is GO.
+2. Click **Launch!** on the task list: the engineer walks to the launch gate. **Press and hold Launch.** The door opens, the pad cinematic plays, then the 3D cruise and the Mars landing sequence.
 3. On the report, read **"Why it turned out this way"** and **"One change that would have helped most"**.
-4. **Improve the design → Route step → "Check the physics"** shows the real Perseverance launch on the same chart, with real vs. computed numbers.
+4. **Improve the design** takes you back to the high bay. Click the **MMRTG** on the Power rack: the gauges preview the change; carry it to the blue ring and press **E**.
+5. At the **Flight Dynamics** desk, **"Check the physics"** shows the real Perseverance launch on the launch-window chart, with real vs. computed numbers.
+
+**Controls:** WASD / arrow keys to walk, Shift to run, drag to look, wheel to zoom, **click anything** to walk there, **E** to use, **Tab** to switch player (team mode), Esc to close. Touch: left stick + USE button.
 
 Repeatable demo link (same events every time): `?mission=mars&preset=nasa&seed=1&speed=4`
 
@@ -47,13 +50,13 @@ URL options: `?mission=mars|jupiter|pluto`, `&difficulty=easy|normal|hard|sandbo
 | Launch vehicle compatible with mass and orbit | 5 real rockets with payload-vs-launch-energy curves; the launch-window chart outlines what your rocket can reach |
 | Orbit selection and characteristics | Real launch windows; 3 Jupiter science orbits (braking burn vs. close passes vs. radiation) |
 | Resources: mass, power, budget, data, comms, time | Live dashboard with change chips (e.g. "+15 kg", "+$102M") on every decision |
-| Team play up to 4, roles, negotiation | 4 roles with conflicting personal goals shown live, hand-off prompts, sign-offs reset on any change, bonus when the whole team hits its goals |
-| Clear objectives and feedback | Every step shows its goal with a live ✓/✗; problems link to the step that fixes them |
+| Team play up to 4, roles, negotiation | 4 engineers in the high bay, one per role, each with their own stations and conflicting personal goals; Tab hands the controls to the next player; sign-offs at the launch gate reset on any change; bonus when the whole team hits its goals |
+| Clear objectives and feedback | A live task list with the next station highlighted in the 3D world and on the minimap; every station shows its goal with a live ✓/✗; failed checks point to the station that fixes them |
 | Random events / unexpected constraints | Dust storms, safe modes, Juno's valve anomaly, radiation, relay failure, NASA HQ budget cuts |
 | Difficulty levels / scenarios / sandbox | Easy, Normal, Hard, Sandbox × 3 missions × 3 objectives |
 | Post-mission analysis and report | Lesson-first report, "fix it" button, re-flies the mission with every single change to find the one that helps most |
 | Leaderboard, save, share, compare | Local leaderboard, share links, "Fly NASA's design" to compare with the real approach |
-| Educational value | Tips from the Flight Director, glossary tooltips, history mode, Data & Validation screen, teacher guide (`docs/TEACHER_GUIDE.md`) |
+| Educational value | Flight Director radio calls explain every station and every failed check; gauges preview each part's cost before you install it; planetary-protection and clean-room details; history mode; Data & Validation screen; teacher guide (`docs/TEACHER_GUIDE.md`) |
 
 ## The physics (all in `src/physics/`)
 
@@ -83,7 +86,10 @@ src/physics/   ephemeris, Kepler propagation, Lambert solver, launch-window grid
 src/data/      missions + objectives, instruments, rockets, subsystem parts
 src/game/      evaluate.ts (systems engineering model), simulate.ts (events + score),
                analysis.ts (what-if re-flights), history.ts (real missions), presets.ts (NASA-style designs)
-src/scene/     Three.js solar system, procedural planet textures, procedural spacecraft/rover models
+src/hangar/    the high bay game: renderer + post-processing, clean-room environment, engineer
+               character and controls, real-scale spacecraft/rocket models, stations, crane,
+               HUD (tasks, gauges, Flight Director radio), launch pad cinematic
+src/scene/     Three.js solar system, procedural planet textures, spacecraft models for flight close-ups
 src/ui/        app shell, launch-window chart, flight player, report, synthesized sound
 tests/         physics validation, game balance, analysis
 ```
@@ -98,4 +104,4 @@ Adding a mission = one entry in `src/data/missions.ts`.
 - NASA mission pages for Perseverance, Juno and New Horizons (comparison facts and instrument analogues)
 - Three.js (MIT), Vite, Vitest; fonts: Archivo, IBM Plex Mono (Google Fonts, OFL)
 
-All sound is synthesized in the browser; all 3D models and planet textures are generated in code. NASA Space Apps rules: no NASA logos or insignia are used. AI tools were used in building this project; disclose this on the submission form as the rules require.
+All sound is synthesized in the browser; all 3D models (high bay, engineer, spacecraft, rockets, launch pad) and all textures are generated in code. NASA Space Apps rules: no NASA logos or insignia are used. AI tools were used in building this project; disclose this on the submission form as the rules require.

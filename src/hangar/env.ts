@@ -489,7 +489,7 @@ export function buildHighBay(quality: 'high' | 'low'): HighBay {
     tri.position.set(px, 0, pz);
     head.lookAt(new THREE.Vector3(CRAFT_POS.x, 1.6, CRAFT_POS.z).sub(tri.position).add(head.position));
     g.add(shade(tri));
-    const spot = new THREE.SpotLight(0xfff1dc, 55, 22, 0.55, 0.6, 1.6);
+    const spot = new THREE.SpotLight(0xfff1dc, 26, 22, 0.55, 0.7, 1.6);
     spot.position.set(px, 2.75, pz);
     spot.target.position.set(CRAFT_POS.x, 1.5, CRAFT_POS.z);
     if (quality === 'high' && s > 0 && new URLSearchParams(location.search).get('q') === 'ultra') {

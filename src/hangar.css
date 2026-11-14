@@ -366,3 +366,14 @@ body[data-route='route'] #topbar .meters { opacity: 0.9; }
 .gl-lost div { display: grid; gap: 8px; max-width: 360px; padding: 24px; border-radius: 16px; background: #0e141c; border: 1px solid rgba(255, 255, 255, 0.15); text-align: center; }
 .gl-lost span { color: #9db0c2; font-size: 13px; }
 .gl-lost button { margin-top: 8px; padding: 12px; border-radius: 10px; border: 0; background: #4cc9ff; color: #04131c; font-weight: 800; }
+body[data-route='route'] .brand-sub, body[data-route='pro'] .brand-sub { display: none; }
+@media (max-width: 760px) {
+  .gh-tasks, .gh-tasks[style] { top: 196px !important; bottom: auto; }
+  .gh-role { top: 196px; }
+  body:has(.gh-role.show) .gh-tasks { top: 254px !important; }
+  .gh-hint { display: none; }
+  .gh-radio { grid-template-columns: 40px 1fr; padding: 10px 30px 10px 10px; }
+  .gr-av { width: 40px; height: 40px; }
+  .gr-av svg { width: 30px; height: 30px; }
+  .gr-body p { font-size: 13px; min-height: 0; }
+}

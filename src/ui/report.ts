@@ -13,7 +13,7 @@ import { formatDuration, formatJD } from '../physics/time';
 import type { App } from './app';
 import { $, esc, fmtInt, fmtKg, fmtW, pct, statusIcon, toast } from './dom';
 
-const STEP_LABEL: Record<Tab, string> = { trajectory: 'Route', spacecraft: 'Craft', science: 'Science', comms: 'Comms', launch: 'Launch' };
+const STEP_LABEL: Record<Tab, string> = { trajectory: 'Flight Dynamics desk', spacecraft: 'power rack', science: 'Science Lab', comms: 'antenna stands', launch: 'rocket table' };
 
 /** Which design step fixes an event, from its "fix" hint. */
 function tabForFix(fix: string): Tab {
@@ -104,7 +104,7 @@ export function renderReport(app: App): string {
       <div class="eyebrow">Post-mission report · ${esc(m.name)} · ${BODIES[m.target].name} · ${esc((m.objectives.find((o) => o.id === d.objectiveId) ?? m.objectives[0]).name)}</div>
       <h1>${outcomeText}</h1>
       <p class="headline">${esc(head.text)}</p>
-      ${head.tab ? `<button class="btn fix-step" data-act="fix-step" data-tab="${head.tab}">Fix it on the ${STEP_LABEL[head.tab]} step →</button>` : ''}
+      ${head.tab ? `<button class="btn fix-step" data-act="fix-step" data-tab="${head.tab}">Fix it at the ${STEP_LABEL[head.tab]} →</button>` : ''}
       <div class="grade-row"><div class="stars">${stars}</div><div class="score"><b>${fmtInt(sim.score.total)}</b><span>points</span></div>
         <div class="sci-goal"><div class="sci-bar"><i style="width:${Math.min(100, (sim.scienceFraction / 1.5) * 100)}%"></i><span class="goal" style="left:${100 / 1.5}%"></span></div>
         <div class="sci-nums"><b>${Math.round(sim.science)}</b> / ${m.scienceTarget} science points</div></div></div>

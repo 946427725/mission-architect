@@ -174,7 +174,7 @@ export class Hangar {
     this.outline.visibleEdgeColor.set('#4cc9ff');
     this.outline.hiddenEdgeColor.set('#1d5a77');
     this.composer.addPass(this.outline);
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.38, 0.55, 1.6);
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.35, 0.55, 2.4);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
     this.pmrem = new THREE.PMREMGenerator(this.renderer);
@@ -808,6 +808,7 @@ export class Hangar {
     };
     sound.sheet();
     this.renderPanel();
+    if (id === 'ops' || id === 'comms') this.app.maybeProgramEvent();
     const key = 'st:' + id;
     if (!this.saidIntro.has(key)) {
       this.saidIntro.add(key);

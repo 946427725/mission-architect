@@ -295,7 +295,7 @@ export function evaluate(d: Design): Evaluation {
       : `Expected ${Math.round(potential)} of ${m.scienceTarget} points. Add instruments, return more data${radiation ? ' or survive more orbits' : ''}.`,
   });
   if (objective.needsOrbit && orbit && orbit.id !== objective.needsOrbit)
-    add({ id: 'objective', area: 'science', label: 'Orbit fits the objective', status: 'warn', detail: `"${objective.name}" needs the ${JUPITER_ORBITS.find((o) => o.id === objective.needsOrbit)!.name.toLowerCase()} to fly past the moons. Change the orbit on the Craft step.` });
+    add({ id: 'objective', area: 'science', label: 'Orbit fits the objective', status: 'warn', detail: `"${objective.name}" needs the ${JUPITER_ORBITS.find((o) => o.id === objective.needsOrbit)!.name.toLowerCase()} to fly past the moons. Change the orbit at Orbit Planning.` });
   const orphan = instr.filter((i) => i.needsHGA && !hasHGA);
   if (orphan.length)
     add({ id: 'hga', area: 'science', label: 'Instrument needs a dish', status: 'warn', detail: `${orphan.map((i) => i.name).join(', ')} needs a high-gain antenna to work.` });

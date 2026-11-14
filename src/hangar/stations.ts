@@ -327,7 +327,7 @@ export function buildStation(def: StationDef, mission: MissionDef, roleColor: st
     case 'orbit': {
       screen = liveScreen(1600, 900);
       const sc = screenMesh(screen, 6.4, 3.6);
-      sc.position.set(-9.5, 5.2, -ROOM.z + 0.12);
+      sc.position.set(-9.5, 5.2, -ROOM.z + 0.14);
       g.add(sc);
       g.add(at(box(6.7, 3.9, 0.12, m.paintDark), -9.5, 5.2, -ROOM.z + 0.05));
       const dk = desk(2.4, 0.9);
@@ -407,7 +407,7 @@ export function buildStation(def: StationDef, mission: MissionDef, roleColor: st
       });
       screen = liveScreen(1280, 640);
       const sc = screenMesh(screen, 3.2, 1.6);
-      sc.position.set(ROOM.x - 0.05, 2.45, -4.5);
+      sc.position.set(ROOM.x - 0.09, 2.45, -4.5);
       sc.rotation.y = -Math.PI / 2;
       g.add(sc);
       g.add(at(box(0.08, 1.75, 3.35, m.paintDark), ROOM.x - 0.02, 2.45, -4.5));
@@ -475,7 +475,7 @@ export function buildStation(def: StationDef, mission: MissionDef, roleColor: st
       g.add(ch);
       screen = liveScreen(1600, 900);
       const sc = screenMesh(screen, 5.6, 3.15);
-      sc.position.set(x, 4.6, ROOM.z - 0.1);
+      sc.position.set(x, 4.6, ROOM.z - 0.12);
       sc.rotation.y = Math.PI;
       g.add(sc);
       g.add(at(box(5.9, 3.45, 0.12, m.paintDark), x, 4.6, ROOM.z - 0.03));

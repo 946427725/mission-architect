@@ -19,7 +19,7 @@ function makeMats() {
   const std = (p: THREE.MeshStandardMaterialParameters) => new THREE.MeshStandardMaterial(p);
   const phy = (p: THREE.MeshPhysicalMaterialParameters) => new THREE.MeshPhysicalMaterial(p);
   return {
-    suit: phy({ color: 0xf2f4f6, roughness: 0.8, sheen: 0.7, sheenRoughness: 0.45, sheenColor: new THREE.Color(0xffffff), normalMap: fab, normalScale: new THREE.Vector2(0.45, 0.45) }),
+    suit: phy({ color: 0xeef1f4, roughness: 0.86, sheen: 0.45, sheenRoughness: 0.6, sheenColor: new THREE.Color(0xffffff), normalMap: fab, normalScale: new THREE.Vector2(0.45, 0.45) }),
     suitSeam: std({ color: 0xd9dde1, roughness: 0.85 }),
     nitrile: phy({ color: 0x5a4ec4, roughness: 0.36, clearcoat: 0.35, clearcoatRoughness: 0.3 }),
     skin: std({ color: 0xc69476, roughness: 0.55 }),
