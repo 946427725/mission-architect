@@ -146,16 +146,9 @@ let saved = false;
 
 function backToDesign(app: App, tab?: Tab) {
   saved = false;
-  app.view.setCloseupModel(null);
-  app.view.setCraftAt(null);
-  app.view.showTransfer(app.design!.transfer);
-  app.view.setDate(app.design!.transfer!.launchJD);
-  app.view.frameSystem(missionOf(app.design!).target === 'pluto' ? 44 : missionOf(app.design!).target === 'jupiter' ? 6.8 : 2.3);
   if (tab) app.tab = tab;
-  app.screen = 'design';
-  app.panelAnim = true;
-  app.evaluateNow();
-  app.render();
+  app.view.showTransfer(app.design!.transfer);
+  app.backToHangar(tab);
 }
 
 export function reportAction(app: App, act: string, el: HTMLElement) {

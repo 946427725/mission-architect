@@ -20,8 +20,9 @@ import { sound } from './sound';
 import { NASA_PRESET_NAME, nasaPreset } from '../game/presets';
 import { HISTORY } from '../game/history';
 import { directTransfer as directTr, jgaTransfer as jgaTr } from '../physics/porkchop';
+import { Hangar } from '../hangar/hangar';
 
-type Screen = 'title' | 'select' | 'design' | 'flight' | 'report';
+type Screen = 'title' | 'select' | 'hangar' | 'design' | 'flight' | 'report';
 type MeterSpec = { id: string; tab: Tab; label: string; value: number; fmt: (v: number) => string; unit: string; of: string; fill: number | null; st: Status };
 
 const TAB_ROLE: Record<Tab, RoleId> = { trajectory: 'flight', spacecraft: 'engineer', science: 'science', comms: 'ops', launch: 'flight' };
@@ -100,9 +101,13 @@ export class App {
   demoSpeed = 1;
   private history = false;
   private historyGrids = new Map<string, PorkchopGrid>();
+  readonly hangar: Hangar;
+  /** 'route' = the launch-window console opened from the high bay; 'pro' = the full engineer panel. */
+  routeMode: 'route' | 'pro' | null = null;
 
   constructor() {
     this.view = new SolarSystemView($('#space'));
+    this.hangar = new Hangar($('#hangar'), this);
     this.view.setDate(this.idleJD);
     this.view.setHighlight(['earth']);
     this.view.frameSystem(7);
@@ -156,7 +161,8 @@ export class App {
     this.tab = 'trajectory';
     this.sim = null;
     this.attempt = 0;
-    this.screen = 'design';
+    this.screen = 'hangar';
+    this.routeMode = null;
     this.panelAnim = true;
     this.showHelp = d.difficulty !== 'hard';
     this.rev = 0;
@@ -170,6 +176,7 @@ export class App {
     this.view.setCloseupModel(null);
     this.ensureGrid();
     this.evaluateNow();
+    this.hangar.enter(true);
   }
 
   private highlightBodies(): BodyId[] {
@@ -198,6 +205,133 @@ export class App {
     if (opts.panel !== false) this.renderPanel();
     this.preview?.update(this.design!);
     this.updatePorkOverlay();
+    this.hangar.onDesignChanged(opts.panel !== false);
+  }
+
+  // ------------------------------------------------------------------ high bay API
+  /** Replace the design (from the high bay). `light` skips sound/sign-off side effects for continuous edits. */
+  applyDesign(d: Design, fromHangar = false, light = false) {
+    this.design = d;
+    if (light) {
+      this.evaluateNow();
+      this.hangar.onDesignChanged(false);
+      return;
+    }
+    if (fromHangar) this.changed({ panel: false });
+    else this.changed();
+  }
+
+  /** Open the launch-window chart (solar system view) from the Flight Dynamics desk. */
+  openRoute(history = false) {
+    if (!this.design) return;
+    this.routeMode = 'route';
+    this.tab = 'trajectory';
+    this.panelAnim = true;
+    this.screen = 'design';
+    this.history = false;
+    this.view.setHighlight(this.highlightBodies());
+    this.view.frameSystem(FRAME_AU[missionOf(this.design).id] ?? 6);
+    this.view.setDate(this.design.transfer?.launchJD ?? this.ev?.readyJD ?? PROJECT_START_JD);
+    this.view.showTransfer(this.design.transfer);
+    this.ensureGrid();
+    this.render();
+    if (history) this.setHistory(true);
+  }
+
+  /** The full engineer panel (every setting on one sheet), for experts. */
+  openPro() {
+    if (!this.design) return;
+    this.routeMode = 'pro';
+    this.panelAnim = true;
+    this.screen = 'design';
+    this.view.setHighlight(this.highlightBodies());
+    this.view.frameSystem(FRAME_AU[missionOf(this.design).id] ?? 6);
+    this.view.setDate(this.design.transfer?.launchJD ?? this.ev?.readyJD ?? PROJECT_START_JD);
+    this.view.showTransfer(this.design.transfer);
+    this.ensureGrid();
+    this.render();
+  }
+
+  /** Back to the high bay (optionally pointing the player at the station for a step). */
+  backToHangar(tab?: Tab) {
+    if (!this.design) return;
+    this.routeMode = null;
+    this.history = false;
+    this.screen = 'hangar';
+    this.view.setCloseupModel(null);
+    this.view.setCraftAt(null);
+    this.evaluateNow();
+    this.render();
+    this.hangar.enter(false);
+    if (tab) {
+      const st = ({ trajectory: 'flight', spacecraft: 'power', science: 'science', comms: 'comms', launch: 'rockets' } as const)[tab];
+      this.hangar.goTo(st);
+    }
+  }
+
+  async autoPick() {
+    if (!this.design) return;
+    const key = this.gridKey();
+    if (!this.grids.has(key)) {
+      this.ensureGrid();
+      toast('Computing launch windows…', 'info');
+      await this.gridLoading.get(key);
+    }
+    this.pickBest();
+  }
+
+  setRouteKind(kind: 'direct' | 'jga') {
+    const d = this.design;
+    if (!d || d.trajectoryKind === kind) return;
+    d.trajectoryKind = kind;
+    d.transfer = null;
+    this.view.showTransfer(null);
+    this.view.setHighlight(this.highlightBodies());
+    this.ensureGrid();
+    this.changed();
+  }
+
+  autoFuel() {
+    const d = this.design;
+    if (!d) return;
+    d.propellantKg = Math.min(PROP_MAX[d.missionId] ?? 1000, autoPropellant(d));
+    this.changed();
+    toast(`Propellant set to ${fmtKg(d.propellantKg)}`, 'good');
+    sound.go();
+  }
+
+  openMenu() {
+    const on = !sound.muted;
+    this.openModal(`<div class="modal-card menu-card"><button class="close" data-act="modal-close" aria-label="Close">×</button>
+      <div class="eyebrow">Paused</div><h2>${esc(this.design ? missionOf(this.design).name : 'Mission Architect')}</h2>
+      <div class="menu-list">
+        <button class="btn" data-act="modal-close">Resume</button>
+        <button class="btn ghost" data-act="menu-pro">Engineer view (all settings on one sheet)</button>
+        <button class="btn ghost" data-act="howto-menu">How it works</button>
+        <button class="btn ghost" data-act="validation">Data &amp; validation</button>
+        <button class="btn ghost" data-act="sound">${on ? 'Sound: on' : 'Sound: off'}</button>
+        <button class="btn ghost" data-act="home">Quit to title</button>
+      </div></div>`);
+  }
+
+  /** After the pad cinematic: straight into the flight (no second countdown). */
+  startFlightFromPad() {
+    const d = this.design;
+    if (!d || !d.transfer) return;
+    this.screen = 'flight';
+    this.render();
+    this.view.setCloseupModel(null);
+    this.view.setDate(d.transfer.launchJD);
+    this.view.showTransfer(d.transfer);
+    this.view.setCraftAt(d.transfer.launchJD);
+    this.view.followTarget('earth', 1.3);
+    this.flight = new FlightPlayer(this);
+    this.flight.start();
+  }
+
+  /** A design for the title/select backdrop. */
+  previewDesign(missionId: string): Design {
+    return nasaPreset(missionId, 'normal');
   }
 
   // ------------------------------------------------------------------ grids
@@ -455,6 +589,11 @@ export class App {
   // ------------------------------------------------------------------ rendering
   render() {
     document.body.dataset.screen = this.screen;
+    document.body.dataset.route = this.routeMode ?? '';
+    const bay = this.screen === 'title' || this.screen === 'select' || this.screen === 'hangar';
+    this.view.setRunning(!bay);
+    if (this.screen === 'title' || this.screen === 'select') this.hangar.preview(this.previewDesign(this.select.missionId));
+    else if (this.screen !== 'hangar' && this.hangar.mode !== 'cinema') this.hangar.setMode('off');
     this.view.setViewInset(window.innerWidth <= 900 ? 0 : this.screen === 'design' ? 440 : this.screen === 'title' ? Math.round(window.innerWidth * 0.55) : 0);
     this.renderTopbar();
     this.renderPanel();
@@ -617,8 +756,10 @@ export class App {
     const issueBtn = (c: Check, other: boolean) =>
       `<button class="issue ${c.status} ${other ? 'other' : ''}" ${other ? `data-act="tab" data-tab="${c.area}"` : ''} data-tip="${esc(stripTags(c.detail))}" data-tip-title="${esc(c.label)}"><b>${c.status === 'fail' ? 'NO-GO' : 'CHECK'}</b><span>${other ? `${STEP_NAME[c.area]}: ` : ''}${esc(shortIssue(c.detail))}</span>${other ? '<i>Go →</i>' : ''}</button>` +
       (c.id === 'ready' && c.status === 'fail' ? `<button class="fix-btn" data-act="next-window">Move launch to the next window I'm ready for →</button>` : '');
+    panel.classList.toggle('route-only', this.routeMode === 'route');
+    const back = this.routeMode ? `<button class="back-bay" data-act="to-bay">← Back to the high bay</button>` : '';
     panel.innerHTML = `
-      <nav class="rail" aria-label="Design steps">${rail}<i class="rail-ink"></i></nav>
+      ${back}<nav class="rail" aria-label="Design steps">${rail}<i class="rail-ink"></i></nav>
       <div class="sheet">
         <header class="sheet-head ${enter ? 'enter' : ''}">
           <div class="sheet-kicker">Step ${idx + 1} of 5</div>
@@ -987,14 +1128,10 @@ export class App {
     return `<div class="title-card">
       <div class="eyebrow">NASA Space Apps Challenge 2026 · Space Mission Design Game</div>
       <h1><span class="w"><span>Mission</span></span><span class="w"><span>Architect</span></span></h1>
-      <p class="tagline">Design a real space mission. <b>Physics decides</b> if it works.</p>
-      <ul class="features">
-        <li><b>Real orbits</b>Trajectories solved from NASA/JPL planet positions. New Horizons' Jupiter flyby reproduced within 2%.</li>
-        <li><b>Real trade-offs</b>Mass, power, Δv, budget, data, radiation and time pull against each other.</li>
-        <li><b>Learn by failing</b>Every outcome is explained, then compared with the real NASA mission.</li>
-      </ul>
+      <p class="tagline">Build a real spacecraft by hand. <b>Physics decides</b> if it flies.</p>
+      <div class="play-hint"><span>Real NASA/JPL orbits</span><span>1–4 players</span><span>Mars · Jupiter · Pluto</span></div>
       <div class="cta on-space">
-        <button class="btn big" data-act="to-select">Start a mission</button>
+        <button class="btn big" data-act="to-select">Play</button>
         <button class="btn ghost" data-act="howto">How it works</button>
         <button class="btn ghost" data-act="validation">Data &amp; validation</button>
       </div>
@@ -1078,6 +1215,7 @@ export class App {
       if (t.dataset.act === 'sign') {
         this.team.signoffs[t.dataset.role as RoleId] = t.checked;
         this.renderPanel();
+        this.hangar.onDesignChanged(false);
         return;
       }
       if (t.type === 'range' && t.dataset.key && this.design) this.changed();
@@ -1191,6 +1329,8 @@ export class App {
       case 'home':
         {
           this.flight?.stop();
+          $('#modal-root').innerHTML = '';
+          this.routeMode = null;
           this.go('title');
           this.view.setHighlight(['earth']);
           this.view.showTransfer(null);
@@ -1200,10 +1340,13 @@ export class App {
         }
         break;
       case 'to-select': this.go('select'); break;
+      case 'to-bay': this.backToHangar(); break;
+      case 'menu-pro': $('#modal-root').innerHTML = ''; this.openPro(); break;
+      case 'howto-menu': $('#modal-root').innerHTML = `<div class="modal" role="dialog">${this.howtoHTML().replace('howto-close', 'modal-close')}</div>`; break;
       case 'to-title': this.go('title'); break;
       case 'howto': $('#howto')?.classList.remove('hidden'); break;
       case 'howto-close': $('#howto')?.classList.add('hidden'); break;
-      case 'pick-mission': this.select.missionId = el.dataset.val!; this.select.objectiveId = ''; this.renderOverlay(); break;
+      case 'pick-mission': this.select.missionId = el.dataset.val!; this.select.objectiveId = ''; this.renderOverlay(); this.hangar.preview(this.previewDesign(this.select.missionId)); break;
       case 'pick-objective': this.select.objectiveId = el.dataset.val!; this.renderOverlay(); break;
       case 'pick-diff': this.select.difficulty = el.dataset.val as Difficulty; this.renderOverlay(); break;
       case 'pick-mode': this.select.team = el.dataset.val === 'team'; this.renderOverlay(); break;
@@ -1297,6 +1440,11 @@ export class App {
           if (l) l.textContent = sound.muted ? 'Sound off' : 'Sound on';
         });
         if (!sound.muted) sound.select();
+        document.querySelectorAll('.menu-list [data-act="sound"]').forEach((b) => (b.textContent = sound.muted ? 'Sound: off' : 'Sound: on'));
+        if (this.screen === 'hangar' && this.hangar.mode === 'play') {
+          if (sound.muted) sound.ambienceStop();
+          else sound.ambienceStart();
+        }
         break;
       }
       case 'help':
@@ -1307,6 +1455,7 @@ export class App {
         if (this.screen === 'design') toast('Press and hold the button to launch', 'info');
         break;
       default:
+        if (this.hangar.action(act, el)) return;
         this.flight?.action(act, el);
         reportAction(this, act, el);
     }
@@ -1316,6 +1465,12 @@ export class App {
   launch() {
     const d = this.design;
     if (!d || !d.transfer || !this.ev?.launchable) return;
+    if (this.screen === 'hangar') {
+      this.attempt++;
+      this.flight?.stop();
+      this.hangar.launchSequence(() => this.startFlightFromPad());
+      return;
+    }
     this.attempt++;
     this.flight?.stop();
     this.screen = 'flight';
@@ -1338,10 +1493,10 @@ export class App {
     this.startDesign(d, false);
     this.tab = 'launch';
     this.render();
-    toast(`Loaded a ${NASA_PRESET_NAME[missionId]}. Press and hold Launch, or change anything first.`, 'good');
+    this.hangar.hud.say(`${NASA_PRESET_NAME[missionId]} is on the stand and every station is GO. Walk to the launch gate at the big door (or click it on the task list) and hold Launch. Or change anything first.`, 'FLIGHT DIRECTOR', 9000, true);
   }
 
-  private maybeProgramEvent() {
+  maybeProgramEvent() {
     const d = this.design!;
     if (d.programEvent || d.difficulty === 'easy' || d.difficulty === 'sandbox') return;
     const rand = mulberry32(Date.now() & 0xffffffff);
@@ -1370,6 +1525,7 @@ export class App {
     $('#overlay').innerHTML = '';
     this.renderTopbar();
     this.renderPanel();
+    this.hangar.onDesignChanged(false);
   }
 
   playersSummary(): string {

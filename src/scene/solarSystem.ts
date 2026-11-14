@@ -135,6 +135,16 @@ export class SolarSystemView {
   }
 
   /** Shift the view centre right so a left-side panel does not hide the scene. */
+  private running = true;
+  /** Stop rendering (and hide) while the high bay is on screen. */
+  setRunning(on: boolean) {
+    if (on === this.running) return;
+    this.running = on;
+    this.container.style.display = on ? '' : 'none';
+    this.renderer.setAnimationLoop(on ? () => this.tick() : null);
+    if (on) this.resize();
+  }
+
   setViewInset(left: number) {
     if (left === this.insetLeft) return;
     this.insetLeft = left;

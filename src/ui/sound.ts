@@ -223,6 +223,140 @@ class SoundEngine {
     this.drone = null;
   }
 
+  // ---------------------------------------------------------------- high bay
+  private loops = new Map<string, { nodes: AudioScheduledSourceNode[]; gain: GainNode }>();
+
+  private noiseLoop(name: string, vol: number, filters: { type: BiquadFilterType; freq: number; q?: number }[], fade = 0.6, extra?: (ctx: AudioContext, out: GainNode) => AudioScheduledSourceNode[]) {
+    const ctx = this.ready();
+    if (!ctx || this.loops.has(name) || !this.noiseBuf) return;
+    const gain = ctx.createGain();
+    gain.gain.value = 0.0001;
+    gain.gain.setTargetAtTime(vol, ctx.currentTime, fade / 3);
+    gain.connect(this.master!);
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    src.loop = true;
+    let node: AudioNode = src;
+    for (const f of filters) {
+      const b = ctx.createBiquadFilter();
+      b.type = f.type;
+      b.frequency.value = f.freq;
+      b.Q.value = f.q ?? 0.7;
+      node.connect(b);
+      node = b;
+    }
+    node.connect(gain);
+    src.start(0, Math.random());
+    const nodes: AudioScheduledSourceNode[] = [src, ...(extra?.(ctx, gain) ?? [])];
+    this.loops.set(name, { nodes, gain });
+  }
+
+  private stopLoop(name: string, fade = 0.4) {
+    const l = this.loops.get(name);
+    if (!l || !this.ctx) return;
+    l.gain.gain.setTargetAtTime(0.0001, this.ctx.currentTime, fade / 3);
+    for (const n of l.nodes) n.stop(this.ctx.currentTime + fade + 0.2);
+    this.loops.delete(name);
+  }
+
+  /** Clean-room HVAC: a soft, constant air hum. */
+  ambienceStart() {
+    this.noiseLoop('hvac', 0.05, [{ type: 'lowpass', freq: 520 }, { type: 'highpass', freq: 60 }], 1.5, (ctx, out) => {
+      const o = ctx.createOscillator();
+      o.frequency.value = 120;
+      const g = ctx.createGain();
+      g.gain.value = 0.05;
+      o.connect(g).connect(out);
+      o.start();
+      return [o];
+    });
+  }
+  ambienceStop() {
+    this.stopLoop('hvac', 0.8);
+  }
+  /** Soft shoe-cover footstep on vinyl. */
+  step(run: boolean) {
+    this.noise(run ? 0.07 : 0.09, { type: 'bandpass', freq: 380 + Math.random() * 140, q: 1.2, gain: run ? 0.05 : 0.035, attack: 0.004 });
+  }
+  pickup() {
+    this.noise(0.18, { type: 'bandpass', freq: 1400, to: 2600, q: 1, gain: 0.04, attack: 0.02 });
+    this.tone(520, 0.08, { type: 'triangle', gain: 0.04, at: 0.05 });
+  }
+  whoosh() {
+    this.noise(0.7, { type: 'bandpass', freq: 500, to: 2200, q: 0.8, gain: 0.05, attack: 0.25 });
+  }
+  clunk() {
+    this.tone(110, 0.22, { to: 60, gain: 0.25 });
+    this.noise(0.06, { type: 'lowpass', freq: 1800, gain: 0.12 });
+  }
+  /** A part locks into place: mechanical clunk + confirmation chirp. */
+  install() {
+    this.clunk();
+    this.noise(0.12, { type: 'highpass', freq: 3000, gain: 0.03, at: 0.05 });
+    this.tone(880, 0.09, { type: 'triangle', gain: 0.05, at: 0.12 });
+    this.tone(1320, 0.14, { type: 'triangle', gain: 0.05, at: 0.2 });
+  }
+  craneStart() {
+    this.noiseLoop('crane', 0.06, [{ type: 'bandpass', freq: 180, q: 2 }], 0.4, (ctx, out) => {
+      const o = ctx.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.value = 58;
+      const f = ctx.createBiquadFilter();
+      f.type = 'lowpass';
+      f.frequency.value = 240;
+      const g = ctx.createGain();
+      g.gain.value = 0.35;
+      o.connect(f).connect(g).connect(out);
+      o.start();
+      return [o];
+    });
+    this.tone(1046, 0.12, { type: 'square', gain: 0.02, lp: 2000 });
+    this.tone(1046, 0.12, { type: 'square', gain: 0.02, lp: 2000, at: 0.3 });
+  }
+  craneStop() {
+    this.stopLoop('crane', 0.3);
+  }
+  pumpStart() {
+    this.noiseLoop('pump', 0.07, [{ type: 'bandpass', freq: 700, q: 3 }], 0.2, (ctx, out) => {
+      const o = ctx.createOscillator();
+      o.type = 'triangle';
+      o.frequency.value = 92;
+      const g = ctx.createGain();
+      g.gain.value = 0.3;
+      o.connect(g).connect(out);
+      o.start();
+      return [o];
+    });
+  }
+  pumpStop() {
+    this.stopLoop('pump', 0.2);
+    this.tone(330, 0.08, { type: 'triangle', gain: 0.04 });
+  }
+  doorOpen() {
+    this.noise(3.2, { type: 'bandpass', freq: 240, to: 420, q: 1.5, gain: 0.12, attack: 0.3 });
+    this.tone(70, 3.0, { type: 'sawtooth', gain: 0.05, lp: 300, attack: 0.3 });
+    for (let i = 0; i < 3; i++) this.tone(740, 0.25, { type: 'square', gain: 0.025, lp: 1800, at: i * 0.6 });
+  }
+  /** Outdoors at the pad: wind. */
+  padAmbience(on: boolean) {
+    if (on) this.noiseLoop('wind', 0.06, [{ type: 'lowpass', freq: 700 }, { type: 'highpass', freq: 120 }], 1.2);
+    else this.stopLoop('wind', 0.8);
+  }
+  /** Continuous rocket roar while the engines burn. */
+  rumble(on: boolean) {
+    if (on)
+      this.noiseLoop('roar', 0.42, [{ type: 'lowpass', freq: 420 }], 0.8, (ctx, out) => {
+        const o = ctx.createOscillator();
+        o.frequency.value = 36;
+        const g = ctx.createGain();
+        g.gain.value = 0.6;
+        o.connect(g).connect(out);
+        o.start();
+        return [o];
+      });
+    else this.stopLoop('roar', 1.5);
+  }
+
   // ---------------------------------------------------------------- report
   stamp() {
     this.tone(140, 0.28, { to: 42, gain: 0.45 });
