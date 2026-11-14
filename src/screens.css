@@ -233,3 +233,28 @@ body[data-screen='report'] #topbar { display: none; }
 
 /* safety: an empty overlay must never block the game */
 #overlay:empty { display: none !important; }
+
+/* ------------------------------------------------------------ real-looking flight: captions + route map */
+body[data-screen='flight'] #frame { display: none; }
+body[data-screen='flight'] #topbar { background: linear-gradient(180deg, rgba(0, 0, 0, 0.55), transparent); border-bottom-color: transparent; }
+.sc-ui { position: fixed; inset: 0; z-index: 11; pointer-events: none; display: none; color: #eef3f8; }
+.sc-ui.show { display: block; }
+.sc-cap { position: absolute; left: 50%; bottom: 30px; transform: translateX(-50%); width: min(640px, calc(100vw - 32px)); padding: 14px 20px 16px; border-radius: 16px; background: rgba(6, 9, 14, 0.66); border: 1px solid rgba(255, 255, 255, 0.12); text-align: center; box-shadow: 0 16px 50px rgba(0, 0, 0, 0.4); }
+.sc-cap.in { animation: scIn 0.6s var(--ease) both; }
+@keyframes scIn { from { opacity: 0; transform: translate(-50%, 10px); } }
+.sc-phase { display: inline-block; padding: 3px 10px; border-radius: 999px; background: rgba(255, 200, 100, 0.16); color: #ffc864; font: 700 10.5px var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+.sc-cap b { display: block; margin: 8px 0 4px; font: 800 clamp(20px, 2.4vw, 30px) var(--display); font-stretch: 115%; text-transform: uppercase; letter-spacing: 0.01em; line-height: 1.05; }
+.sc-cap p { margin: 0; font-size: 14.5px; line-height: 1.5; color: #c9d6e2; }
+.sc-map { position: absolute; right: 22px; bottom: 26px; width: 220px; height: 220px; border-radius: 50%; }
+body[data-screen='flight'] .hud-main { bottom: 26px; left: 22px; width: 300px; }
+body[data-screen='flight'] .hud-main .hud-grid > div { padding: 6px 12px; }
+body[data-screen='flight'] .hud-main .hud-grid b { font-size: 14px; }
+@media (max-width: 1250px) {
+  .sc-cap { bottom: auto; top: 70px; }
+  .sc-map { width: 150px; height: 150px; }
+}
+@media (max-width: 760px) {
+  .sc-map { display: none; }
+  body[data-screen='flight'] .hud-main { width: calc(100vw - 24px); left: 12px; bottom: 12px; }
+}
+body[data-screen='flight'] .journey { top: 74px; bottom: auto; left: 50%; transform: translateX(-50%); width: min(560px, calc(100vw - 32px)); }

@@ -30,6 +30,10 @@ function fbm(u: number, v: number, s: number, oct = 5, freq = 4) {
 
 type RGB = [number, number, number];
 const mix = (a: RGB, b: RGB, t: number): RGB => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+const smooth = (a: number, b: number, x: number) => {
+  const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+};
 const hex = (h: string): RGB => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
 
 function paint(w: number, h: number, fn: (u: number, v: number) => RGB): HTMLCanvasElement {
@@ -71,10 +75,18 @@ const generators: Record<BodyId | 'sun', (u: number, v: number) => RGB> = {
   earth: (u, v) => {
     const n = fbm(u, v, 4, 6, 3);
     const lat = Math.abs(v - 0.5) * 2;
-    if (lat > 0.86) return [240, 246, 250];
-    let col: RGB = n > 0.52 ? mix(hex('#3d7a3a'), hex('#a68a55'), Math.min(1, (n - 0.52) * 5 + lat * 0.4)) : mix(hex('#0c2f6b'), hex('#1d5fa8'), n * 1.6);
-    const cloud = fbm(u * 1.3, v, 40, 5, 5);
-    if (cloud > 0.58) col = mix(col, [255, 255, 255], Math.min(0.85, (cloud - 0.58) * 4));
+    // soft coastlines, deep and shallow ocean, deserts in the subtropics, tundra and ice toward the poles
+    const land = smooth(0.505, 0.53, n);
+    const ocean = mix(hex('#071d46'), hex('#1a5896'), smooth(0.3, 0.5, n));
+    const band = Math.max(0, 1 - Math.abs(lat - 0.3) / 0.2);
+    const desert = band * smooth(0.44, 0.6, fbm(u, v, 21, 4, 3));
+    let ground = mix(hex('#2b5a2a'), hex('#5d7639'), smooth(0.52, 0.66, n));
+    ground = mix(ground, hex('#c3a36b'), desert);
+    ground = mix(ground, hex('#77735f'), smooth(0.6, 0.78, lat));
+    let col = mix(ocean, ground, land);
+    col = mix(col, [236, 242, 248], smooth(0.8, 0.9, lat + (n - 0.5) * 0.25));
+    const cloud = fbm(u * 1.6, v, 40, 6, 6);
+    col = mix(col, [250, 252, 255], 0.85 * smooth(0.53, 0.72, cloud));
     return col;
   },
   mars: (u, v) => {
@@ -101,7 +113,9 @@ const generators: Record<BodyId | 'sun', (u: number, v: number) => RGB> = {
     const heart = Math.pow(Math.abs(dx), 1.6) + Math.pow(Math.max(0, dy + Math.abs(dx) * 0.6), 2);
     if (heart < 1) col = mix(hex('#f4ece2'), col, heart * 0.6);
     // dark equatorial band (Cthulhu Macula)
-    if (u < 0.4 && u > 0.15 && Math.abs(v - 0.55) < 0.07 + (n - 0.5) * 0.08) col = mix(col, hex('#3a1f14'), 0.75);
+    const uu = u + (fbm(u, v, 31, 4, 8) - 0.5) * 0.1;
+    const edge = Math.min(smooth(0.13, 0.2, uu), 1 - smooth(0.34, 0.41, uu));
+    col = mix(col, hex('#3a1f14'), 0.75 * edge * (1 - smooth(0.04, 0.09, Math.abs(v - 0.55 - (uu - 0.27) * 0.25) - (n - 0.5) * 0.14)));
     return col;
   },
 };
@@ -175,4 +189,17 @@ export function solarCellTexture(): THREE.Texture {
   t.colorSpace = THREE.SRGBColorSpace;
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   return t;
+}
+
+/** Higher-resolution planet map for close-up cinematics (generated once, ~0.2 s). */
+const hiCache = new Map<string, THREE.Texture>();
+export function planetHiRes(id: BodyId, w = 1024): THREE.Texture {
+  const k = `${id}@${w}`;
+  const hit = hiCache.get(k);
+  if (hit) return hit;
+  const tex = new THREE.CanvasTexture(paint(w, w / 2, generators[id]));
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  hiCache.set(k, tex);
+  return tex;
 }

@@ -11,12 +11,13 @@ Record at 1920×1080, Chrome fullscreen (F11), 60 fps. Use real gameplay; motion
 | Time | Shot | How to capture | Caption / voice-over |
 |---|---|---|---|
 | 0-3 s | Title over the high bay, camera circling the rover on its stand | open the plain URL, wait | "Mission Architect: build a real spacecraft by hand." |
-| 3-8 s | The engineer walks to the Power rack, clicks the MMRTG; the gauges show "+15 kg, −21 W, +$102M" before installing | Play → Red Horizon → Design my own → click the RTG on the rack | "Every part has a real cost in mass, power and money." |
-| 8-12 s | Carry it to the blue ring, press E: the part flies onto the rover, sparkle + gauges update | walk to the ring, E | "Install it, and physics re-checks the whole mission." |
-| 12-15 s | The overhead crane carries the sky crane or a 3 m dish across the bay | Landing Systems or Antennas & Radios station | "Big hardware goes by crane." |
-| 15-18 s | Flight Dynamics desk: the wall screen shows the real Earth→Mars trajectory | walk to the desk, Auto-pick | "Trajectories computed from NASA/JPL planet positions." |
-| 18-23 s | Launch gate → door opens → pad at dawn, T−3…LIFTOFF, smoke from the flame trench | hold Launch at the gate | "Pass the GO/NO-GO poll. Liftoff." |
-| 23-27 s | Cruise at 4×, landing sequence, then the report: APPROVED stamp, "One change that would have helped most" | demo link | "Learn why it worked, and compare with NASA's real mission." |
-| 27-28 s | End card: name, URL, team | motion graphic | NASA Space Apps 2026 · [team name] |
+| 3-7 s | First person at the Power rack: look at the MMRTG, press E, the gloved hands lift it; the gauges show "+15 kg, −21 W, +$102M" | Play → Red Horizon → Design my own → walk to Power | "Every part has a real cost in mass, power and money." |
+| 7-10 s | Walk to the rover with it; it installs, sparkle, gauges update | let auto-carry finish | "Install it, and physics re-checks the whole mission." |
+| 10-13 s | Flight Dynamics desk: the launch-window chart and the Earth→Mars trajectory | walk to the desk, Auto-pick | "Trajectories from NASA/JPL planet positions." |
+| 13-16 s | Launch gate → door opens → pad at dawn, T−3…LIFTOFF | hold Launch at the gate | "Pass the GO/NO-GO poll. Liftoff." |
+| 16-19 s | Above the atmosphere: the fairing splits over the blue Earth, the spacecraft separates | demo link, 1× speed | "The spacecraft you built flies." |
+| 19-25 s | Mars: glowing heat shield, parachute, the sky crane lowering the rover on cables, touchdown dust | keep 1× from "Seven minutes of terror" | "Entry, parachute, sky crane… touchdown." |
+| 25-28 s | The report: APPROVED stamp, "One change that would have helped most" | let it finish, or Skip to results | "Learn why it worked, and compare with NASA's real mission." |
+| 28-30 s | End card: name, URL, team | motion graphic | NASA Space Apps 2026 · [team name] |
 
-Tips: press **Esc** to close a panel, drag to rotate the camera, mouse wheel to zoom. For close-ups, walk right up to the spacecraft ring. Also record a longer 2-minute walkthrough for the project page (not as the demo link).
+Tips: click the view to look around with the mouse (Esc frees it), **V** switches to third person for wide shots, Esc closes a panel. During the flight use 1× for the landing and 4× for the cruise. For close-ups, walk right up to the spacecraft ring. Also record a longer 2-minute walkthrough for the project page (not as the demo link).

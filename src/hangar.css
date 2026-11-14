@@ -386,3 +386,17 @@ body[data-route='route'] .brand-sub, body[data-route='pro'] .brand-sub { display
 body.lowfx #gamehud *, body.lowfx .ms *, body.lowfx .rp * { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
 body.lowfx .gh-panel, body.lowfx .gh-radio { background: rgba(12, 17, 24, 0.96); }
 body.lowfx .ms-obj, body.lowfx .ms-node, body.lowfx .ms-stats div { background: rgba(14, 19, 27, 0.9); }
+
+/* first person: crosshair, what you are looking at, "click to look" */
+.gh-cross { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; pointer-events: none !important; opacity: 0; transition: opacity 0.2s; }
+.gh-cross.show { opacity: 1; }
+.gh-cross i { position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.55); transition: all 0.18s; }
+.gh-cross.on i { width: 22px; height: 22px; margin: -11px 0 0 -11px; background: transparent; border: 2px solid #4cc9ff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 0 14px rgba(76, 201, 255, 0.6); }
+.gh-aim { position: absolute; left: 50%; top: calc(50% + 24px); transform: translateX(-50%); display: none; flex-direction: column; align-items: center; gap: 4px; padding: 7px 12px; border-radius: 10px; background: rgba(9, 13, 19, 0.82); border: 1px solid rgba(255, 255, 255, 0.14); text-align: center; pointer-events: none !important; max-width: 360px; }
+.gh-aim.show { display: flex; }
+.gh-aim b { font-size: 13px; }
+.gh-aim span { font: 600 11.5px var(--mono); color: #4cc9ff; }
+.gh-aim kbd { font: 700 11px var(--mono); padding: 1px 6px; border-radius: 5px; background: #eef3f8; color: #0a0f15; margin-right: 4px; }
+.gh-lock { position: absolute; left: 50%; top: 58%; transform: translate(-50%, -50%); padding: 9px 16px !important; font-size: 13px !important; display: none; flex-direction: column; align-items: center; gap: 4px; padding: 14px 22px; border-radius: 16px; background: rgba(9, 13, 19, 0.7); border: 1px solid rgba(255, 255, 255, 0.18); font: 800 16px var(--display); font-stretch: 112%; text-transform: uppercase; letter-spacing: 0.02em; pointer-events: none !important; }
+.gh-lock small { font: 500 11px var(--mono); text-transform: none; letter-spacing: 0.02em; color: #9db0c2; }
+.gh-lock.show { display: flex; }

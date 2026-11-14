@@ -66,6 +66,9 @@ export class Engineer {
   private arms: [Arm, Arm];
   private legs: [Leg, Leg];
   private band: THREE.Mesh;
+  private blob!: THREE.Mesh;
+  /** gloved hands shown in first person while carrying */
+  readonly fpHands = new THREE.Group();
   private badge: THREE.Mesh;
   heading = 0;
   private phase = 0;
@@ -260,6 +263,27 @@ export class Engineer {
     blob.position.y = 0.012;
     blob.renderOrder = 1;
     this.root.add(blob);
+    this.blob = blob;
+    // first-person hands (only visible from the player's own eyes while carrying)
+    const m2 = M();
+    for (const s of [-1, 1]) {
+      const hand = new THREE.Group();
+      const palm = rbox(0.085, 0.045, 0.15, 0.02, m2.nitrile);
+      hand.add(palm);
+      const cuff = cyl(0.045, 0.05, 0.12, m2.suit, 16);
+      cuff.rotation.x = Math.PI / 2;
+      cuff.position.z = 0.12;
+      hand.add(cuff);
+      const thumb = capsule(0.014, 0.05, m2.nitrile);
+      thumb.rotation.z = Math.PI / 2;
+      thumb.position.set(-s * 0.05, 0.01, -0.03);
+      hand.add(thumb);
+      hand.position.set(s * 0.15, -0.07, 0.06);
+      hand.rotation.set(0.25, 0, s * -0.35);
+      this.fpHands.add(hand);
+    }
+    this.fpHands.visible = false;
+    this.carryAnchor.add(this.fpHands);
   }
 
   setIdentity(color: string, name: string, role: string) {
@@ -268,6 +292,12 @@ export class Engineer {
     mat.map?.dispose();
     mat.map = badgeTexture(name, role, color);
     mat.needsUpdate = true;
+  }
+
+  /** First person: hide the body (the camera is in the head) but keep carried items. */
+  setBodyVisible(v: boolean) {
+    this.hips.visible = v;
+    this.blob.visible = v;
   }
 
   /** True while a gesture or a pose blend is still playing. */

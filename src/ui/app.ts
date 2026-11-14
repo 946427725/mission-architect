@@ -591,11 +591,11 @@ export class App {
   render() {
     document.body.dataset.screen = this.screen;
     document.body.dataset.route = this.routeMode ?? '';
-    const bay = this.screen === 'title' || this.screen === 'select' || this.screen === 'hangar';
+    const bay = this.screen === 'title' || this.screen === 'select' || this.screen === 'hangar' || this.screen === 'flight';
     this.view.setRunning(!bay);
     this.hangar.attractShift = this.screen === 'select' && window.innerWidth > 900 ? Math.round(window.innerWidth * 0.22) : this.screen === 'title' && window.innerWidth > 900 ? Math.round(window.innerWidth * 0.12) : 0;
     if (this.screen === 'title' || this.screen === 'select') this.hangar.preview(this.previewDesign(this.select.missionId));
-    else if (this.screen !== 'hangar' && this.hangar.mode !== 'cinema') this.hangar.setMode('off');
+    else if (this.screen !== 'hangar' && this.screen !== 'flight' && this.hangar.mode !== 'cinema') this.hangar.setMode('off');
     this.view.setViewInset(window.innerWidth <= 900 ? 0 : this.screen === 'design' ? 440 : this.screen === 'title' ? Math.round(window.innerWidth * 0.55) : 0);
     this.renderTopbar();
     this.renderPanel();

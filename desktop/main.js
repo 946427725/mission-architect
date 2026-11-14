@@ -44,16 +44,24 @@ function createWindow() {
   });
   if (process.env.MA_URL) win.loadURL(process.env.MA_URL);
   else win.loadFile(path.join(__dirname, 'app', 'index.html'));
-  // links (NASA pages, data sources) open in the normal browser
+  // Links to other sites (NASA pages, data sources) open in the normal browser.
+  // The game's own pages - including dev-server reloads - stay in this window,
+  // and the hidden test window never opens anything in the user's browser.
+  const sameApp = (url) => {
+    try {
+      return new URL(url).origin === new URL(win.webContents.getURL()).origin;
+    } catch {
+      return false;
+    }
+  };
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https?:/.test(url)) shell.openExternal(url);
+    if (!TEST && /^https?:/.test(url) && !sameApp(url)) shell.openExternal(url);
     return { action: 'deny' };
   });
   win.webContents.on('will-navigate', (e, url) => {
-    if (/^https?:/.test(url)) {
-      e.preventDefault();
-      shell.openExternal(url);
-    }
+    if (!/^https?:/.test(url) || sameApp(url)) return;
+    e.preventDefault();
+    if (!TEST) shell.openExternal(url);
   });
   // F11 toggles fullscreen
   win.webContents.on('before-input-event', (e, input) => {

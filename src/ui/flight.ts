@@ -13,6 +13,7 @@ import type { App } from './app';
 import { $, esc } from './dom';
 import { sound } from './sound';
 import { LANDINGS, POWER } from '../data/parts';
+import type { SpaceCinema } from '../hangar/space';
 
 const FRAME_AU: Record<string, number> = { mars: 2.3, jupiter: 6.8, pluto: 44 };
 
@@ -27,6 +28,8 @@ export class FlightPlayer {
   private finished = false;
   private arrived = false;
   private endAfterPause = false;
+  /** the real-looking 3D flight (launch to landing) */
+  private cin: SpaceCinema | null = null;
 
   constructor(private app: App) {
     const d = app.design!;
@@ -46,6 +49,8 @@ export class FlightPlayer {
     v.setCraftAt(this.jd);
     v.followTarget('earth', 1.3);
     sound.droneStart();
+    this.cin = this.app.hangar.startSpace(d, this.sim);
+    if (this.cin) this.cin.speed = this.speed;
     this.renderHUD();
     this.last = performance.now();
     requestAnimationFrame((t) => this.tick(t));
@@ -54,6 +59,8 @@ export class FlightPlayer {
   stop() {
     this.stopped = true;
     sound.droneStop();
+    this.cin?.stop();
+    this.app.hangar.endSpace();
     const cd = $('#countdown');
     if (cd.classList.contains('edl')) {
       cd.className = '';
@@ -66,6 +73,7 @@ export class FlightPlayer {
   action(act: string, el: HTMLElement) {
     if (act === 'speed') {
       this.speed = Number(el.dataset.val);
+      if (this.cin) this.cin.speed = this.speed;
       document.querySelectorAll('#hud .speed button').forEach((b) => b.classList.toggle('on', (b as HTMLElement).dataset.val === el.dataset.val));
     } else if (act === 'skip') {
       this.finish();
@@ -156,6 +164,10 @@ export class FlightPlayer {
     if (fill) fill.style.width = `${prog}%`;
     const craft = document.getElementById('j-craft');
     if (craft) craft.style.left = `${prog}%`;
+    if (this.cin) {
+      const cruiseFrac = Math.min(1, Math.max(0, (this.jd - tr.launchJD) / Math.max(1, tr.arriveJD - tr.launchJD)));
+      this.cin.setProgress(this.jd, cruiseFrac, { day: met, earthKm: rEarth * AU, delay: delayMin < 1 ? `${Math.max(1, Math.round(delayMin * 60))} s` : delayMin < 120 ? `${delayMin.toFixed(1)} min` : `${(delayMin / 60).toFixed(1)} hours`, sciFrac, power: watts });
+    }
     set('h-phase', this.jd < tr.arriveJD ? (tr.flyby && this.jd < tr.flyby.jd ? 'Cruise to Jupiter' : `Cruise to ${BODIES[missionOf(d).target].name}`) : 'Science operations');
   }
 
@@ -183,6 +195,7 @@ export class FlightPlayer {
       else sound.quindar();
     }
     while (feed.children.length > 4) feed.lastElementChild?.remove();
+    this.cin?.onEvent(ev);
 
     const v = this.app.view;
     const m = missionOf(this.app.design!);
@@ -205,6 +218,13 @@ export class FlightPlayer {
     const d = this.app.design!;
     const m = missionOf(d);
     const tr = d.transfer!;
+    if (this.cin) this.cin.speed = this.speed;
+    if (this.cin?.blocking()) {
+      this.pauseUntil = Math.max(this.pauseUntil, now + 200);
+      this.updateHUD();
+      requestAnimationFrame((t) => this.tick(t));
+      return;
+    }
     if (now >= this.pauseUntil) {
       if (this.endAfterPause) {
         this.finish();
@@ -221,7 +241,9 @@ export class FlightPlayer {
         // hold long enough to read the card (~4 words per second)
         const words = ev.text.split(/\s+/).length;
         let hold = ev.phase === 'end' ? 2200 : Math.min(5500, Math.max(ev.tone === 'info' ? 1800 : 2400, words * 230)) + (ev.tone === 'critical' ? 800 : 0);
-        if (ev.title === 'Seven minutes of terror' && m.type === 'lander') {
+        if (ev.title === 'Seven minutes of terror' && m.type === 'lander' && this.cin) {
+          hold = 400;
+        } else if (ev.title === 'Seven minutes of terror' && m.type === 'lander') {
           const nextEv = this.sim.events[this.next];
           hold = this.edl(nextEv && nextEv.tone === 'critical' ? 'Signal lost' : 'Touchdown') * this.speed + 400;
         }

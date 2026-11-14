@@ -1,7 +1,7 @@
 // Game HUD for the high bay: resource gauges, task list, Flight Director radio,
 // interaction prompt, station panel, floating station labels, minimap and the
 // on-screen joystick for touch devices.
-import { esc } from '../ui/dom';
+import { esc, toast } from '../ui/dom';
 
 export type St = 'ok' | 'warn' | 'fail';
 
@@ -66,6 +66,9 @@ export class Hud {
   private hintEl: HTMLElement;
   private headEl: HTMLElement;
   private roleEl: HTMLElement;
+  private crossEl!: HTMLElement;
+  private aimEl!: HTMLElement;
+  private lockEl!: HTMLElement;
   private sayQueue: { text: string; who: string; ms: number }[] = [];
   private sayTimer = 0;
   private typing = 0;
@@ -94,6 +97,9 @@ export class Hud {
       <canvas class="gh-map" width="360" height="280" aria-hidden="true"></canvas>
       <aside class="gh-panel" aria-label="Station"></aside>
       <div class="gh-tip"></div>
+      <div class="gh-cross" aria-hidden="true"><i></i></div>
+      <div class="gh-aim"></div>
+      <div class="gh-lock">Click to look around<small>Esc frees the mouse · V switches view</small></div>
       <div class="gh-joy"><i></i></div>
       <button class="gh-use" aria-label="Use"><span>USE</span></button>`;
     document.body.appendChild(this.root);
@@ -112,11 +118,36 @@ export class Hud {
     this.knob = q('.gh-joy i');
     this.hintEl = q('.gh-hint');
     this.roleEl = q('.gh-role');
+    this.crossEl = q('.gh-cross');
+    this.aimEl = q('.gh-aim');
+    this.lockEl = q('.gh-lock');
     this.bindTouch();
   }
 
   show(mode: 'off' | 'play' | 'cinema') {
     this.root.dataset.mode = mode;
+  }
+
+  /** First-person crosshair; `active` = the mouse is captured (or touch / a panel is open). */
+  crosshair(show: boolean, active: boolean) {
+    this.crossEl.classList.toggle('show', show && active);
+    this.lockEl.classList.toggle('show', show && !active);
+    if (!show) this.aimLabel(null);
+  }
+
+  aimLabel(html: string | null) {
+    if (!html) {
+      this.aimEl.classList.remove('show');
+      this.crossEl.classList.remove('on');
+      return;
+    }
+    if (this.aimEl.innerHTML !== html) this.aimEl.innerHTML = html;
+    this.aimEl.classList.add('show');
+    this.crossEl.classList.add('on');
+  }
+
+  toast(msg: string) {
+    toast(msg, 'info');
   }
 
   setHeader(html: string) {

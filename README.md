@@ -2,23 +2,23 @@
 
 **Build a real spacecraft by hand. Physics decides if it flies.**
 
-A 3D browser game for the NASA Space Apps Challenge 2026 *Space Mission Design Game* challenge. You play a clean-room engineer in a spacecraft assembly high bay. Walk to the racks, pick real hardware off the shelves (nuclear batteries, solar arrays, dishes, instruments), carry it to the spacecraft on the stand and install it; the overhead crane moves the big parts. Every part changes mass, power, Δv, budget, data and science, and the gauges show the trade-off before you commit. Pick a launch date at the Flight Dynamics desk (real Lambert trajectories from NASA/JPL planet positions), choose a rocket, pass the GO/NO-GO poll at the launch gate, watch the launch from the pad, fly the mission through events taken from real missions, and get a report that explains *why* it succeeded or failed and how it compares with Perseverance, Juno or New Horizons. Solo or a team of up to 4, each player an engineer with their own role and stations.
+A 3D first-person game for the NASA Space Apps Challenge 2026 *Space Mission Design Game* challenge. You are a clean-room engineer in a spacecraft assembly high bay, seeing it through your own eyes. Walk to the racks, pick real hardware off the shelves (nuclear batteries, solar arrays, dishes, instruments), carry it to the spacecraft on the stand and install it; the overhead crane moves the big parts. Every part changes mass, power, Δv, budget, data and science, and the gauges show the trade-off before you commit. Pick a launch date at the Flight Dynamics desk (real Lambert trajectories from NASA/JPL planet positions), choose a rocket, pass the GO/NO-GO poll at the launch gate, watch the launch from the pad, then follow your own spacecraft in 3D all the way: fairing and spacecraft separation over the Earth, the cruise, and the arrival (Mars entry, parachute, sky crane / retro rockets / airbags and touchdown; Jupiter orbit insertion burn; the Pluto and Charon flyby), with events taken from real missions, and get a report that explains *why* it succeeded or failed and how it compares with Perseverance, Juno or New Horizons. Solo or a team of up to 4, each player an engineer with their own role and stations.
 
 ## Judge quick path (about 2 minutes)
 
 1. **Play → Red Horizon → Fly NASA's design.** A Perseverance-style rover is on the stand and every station is GO.
-2. Click **Launch!** on the task list: the engineer walks to the launch gate. **Press and hold Launch.** The door opens, the pad cinematic plays, then the 3D cruise and the Mars landing sequence.
+2. Click **Launch!** on the task list: the engineer walks to the launch gate. **Press and hold Launch.** The door opens, the pad cinematic plays, then the flight in 3D: climb, fairing separation over the Earth, cruise, atmospheric entry, parachute, the sky crane lowering the rover on cables, touchdown. Captions explain each step.
 3. On the report, read **"Why it turned out this way"** and **"One change that would have helped most"**.
-4. **Improve the design** takes you back to the high bay. Click the **MMRTG** on the Power rack: the gauges preview the change; carry it to the blue ring and press **E**.
+4. **Improve the design** takes you back to the high bay. Click the 3D view to look around, walk to the Power rack, **look at the MMRTG and press E**: you pick it up in your gloved hands, the gauges preview the change, and you carry it to the spacecraft and install it.
 5. At the **Flight Dynamics** desk, **"Check the physics"** shows the real Perseverance launch on the launch-window chart, with real vs. computed numbers.
 
-**Controls:** WASD / arrow keys to walk, Shift to run, drag to look, wheel to zoom, **click anything** to walk there, **E** to use, **Tab** to switch player (team mode), Esc to close. Touch: left stick + USE button.
+**Controls:** first person. Click the view to look with the mouse (Esc frees it), WASD / arrow keys to walk, Shift to run, look at a part or station and press **E** (or click) to use it, **V** for third person, **Tab** to switch player (team mode), Esc to close a panel. The task list and gauges are clickable: the engineer walks there by itself. During the flight: 1× / 2× / 4× speed and *Skip to results*. Touch: left stick, drag to look, tap to use.
 
 Repeatable demo link (same events every time): `?mission=mars&preset=nasa&seed=1&speed=4`
 
 ## Play it
 
-- **Windows app (best experience):** download `MissionArchitect-1.0.1-Windows-portable.exe` from Releases and run it (no install). It uses the dedicated GPU on dual-graphics laptops. Not code-signed: on *"Windows protected your PC"* click **More info → Run anyway**.
+- **Windows app (best experience):** download `MissionArchitect-1.0.2-Windows-portable.exe` from Releases and run it (no install). It uses the dedicated GPU on dual-graphics laptops. Not code-signed: on *"Windows protected your PC"* click **More info → Run anyway**.
 - **Website (instant, any computer):** the Vercel link. Graphics quality adapts automatically to the machine.
 - If the .exe will not open on your computer, use the website: it is the same game.
 - Tip for laptops in the browser: Windows Settings → System → Display → Graphics → set your browser to *High performance* to use the dedicated GPU.
@@ -96,7 +96,9 @@ src/game/      evaluate.ts (systems engineering model), simulate.ts (events + sc
                analysis.ts (what-if re-flights), history.ts (real missions), presets.ts (NASA-style designs)
 src/hangar/    the high bay game: renderer + post-processing, clean-room environment, engineer
                character and controls, real-scale spacecraft/rocket models, stations, crane,
-               HUD (tasks, gauges, Flight Director radio), launch pad cinematic
+               HUD (tasks, gauges, Flight Director radio, crosshair), launch pad cinematic,
+               space.ts: the 3D flight from launch to landing (ascent, separation, cruise, entry,
+               parachute, sky crane / retro / airbags, Jupiter orbit insertion, Pluto flyby)
 src/scene/     Three.js solar system, procedural planet textures, spacecraft models for flight close-ups
 src/ui/        app shell, launch-window chart, flight player, report, synthesized sound
 tests/         physics validation, game balance, analysis

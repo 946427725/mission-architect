@@ -1,7 +1,7 @@
 {
   "name": "mission-architect-desktop",
   "productName": "Mission Architect",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Mission Architect: build a real spacecraft by hand. NASA Space Apps Challenge 2026 desktop build.",
   "main": "main.js",
   "author": "Mission Architect Team",

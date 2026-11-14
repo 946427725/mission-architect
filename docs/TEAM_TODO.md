@@ -5,6 +5,11 @@
 - [ ] GitHub → Settings → Pages → Source: **GitHub Actions**. Wait for the green "Deploy to GitHub Pages" run.
 - [ ] Open the URL in an incognito window and on a phone. Try `?mission=mars&preset=nasa&seed=1&speed=4`.
 
+## 1b. Windows app (best version for judges)
+- [ ] GitHub → Releases → *Draft a new release* → tag `v1.0.2` → attach `desktop/dist-exe/MissionArchitect-1.0.2-Windows-portable.exe` → Publish.
+- [ ] Download it on another Windows PC and run it once (More info → Run anyway).
+- [ ] Put the "Two ways to play" text from `docs/PITCH.md` on the project page and a pitch slide.
+
 ## 2. Demo video (30 seconds or less, or it is not eligible)
 - [ ] Follow `docs/VIDEO_SHOTLIST.md` (uses the repeatable demo link).
 - [ ] English captions, human voice-over, no AI images, no NASA logos.

@@ -21,6 +21,7 @@ import { M, at, cyl, rod, shade, v3 } from './kit';
 import { PanelCtx, drawScreens, gaugesFor, panelHTML, partName, tasksFor } from './panels';
 import { BuiltStation, STATIONS, StationId, buildStation, captureHomes, stationById } from './stations';
 import { LaunchPad } from './pad';
+import { SpaceCinema } from './space';
 
 type Mode = 'off' | 'attract' | 'play' | 'cinema';
 const ROLE_ORDER: RoleId[] = ['flight', 'engineer', 'science', 'ops'];
@@ -121,6 +122,7 @@ export class Hangar {
   private hintShown = false;
   private movedOnce = false;
   private pad: LaunchPad | null = null;
+  private space: SpaceCinema | null = null;
   private saidIntro = new Set<string>();
   private rocketSpin = 0;
   private visible = true;
@@ -207,6 +209,12 @@ export class Hangar {
     this.host.style.display = this.visible ? '' : 'none';
     this.hud.show(mode === 'play' ? 'play' : mode === 'cinema' ? 'cinema' : 'off');
     if (mode !== 'play') {
+      for (const w of this.walkers) {
+        w.eng.setBodyVisible(true);
+        w.eng.fpHands.visible = false;
+        w.eng.carryAnchor.position.set(0, 1.1, 0.42);
+      }
+      if (this.locked) document.exitPointerLock?.();
       this.closePanel();
       this.hud.prompt(null);
       this.hud.tooltip(null);
@@ -226,6 +234,7 @@ export class Hangar {
     this.camera.fov = w < 700 ? 64 : 52;
     this.camera.updateProjectionMatrix();
     this.pad?.resize(w, h);
+    this.space?.resize(w, h);
   }
 
   get design(): Design | null {
@@ -249,6 +258,8 @@ export class Hangar {
     this.setMode('play');
     this.onDesignChanged(true);
     if (intro) {
+      this.fpYaw = Math.PI;
+      this.fpPitch = -0.06;
       const p = this.walkers[this.active].pos;
       this.camYaw = 0.12;
       this.camTarget.set(p.x, 1.5, p.z);
@@ -266,7 +277,7 @@ export class Hangar {
       if (!this.hintShown) {
         this.hintShown = true;
         const touch = matchMedia('(pointer: coarse)').matches;
-        this.hud.hint(touch ? 'Left stick to walk · drag to look · tap a station to go there · <b>USE</b> to interact' : '<b>WASD</b> walk · <b>Shift</b> run · drag to look · click anything to go there · <b>E</b> use' + (this.app.team.enabled ? ' · <b>Tab</b> switch player' : ''));
+        this.hud.hint(touch ? 'Left stick to walk · drag to look · tap a station to go there · <b>USE</b> to interact' : this.fp ? '<b>Click</b> to look around · <b>WASD</b> walk · look at a part and press <b>E</b> · <b>V</b> 3rd person' + (this.app.team.enabled ? ' · <b>Tab</b> switch player' : '') : '<b>WASD</b> walk · <b>Shift</b> run · drag to look · click anything to go there · <b>E</b> use' + (this.app.team.enabled ? ' · <b>Tab</b> switch player' : ''));
         setTimeout(() => this.hud.hint(null), 14000);
       }
     }
@@ -374,12 +385,27 @@ export class Hangar {
     void w;
   }
 
+  toggleView() {
+    this.fp = !this.fp;
+    const me = this.walkers[this.active];
+    if (this.fp) this.fpYaw = me.eng.heading;
+    else {
+      this.camYaw = me.eng.heading + Math.PI;
+      if (this.locked) document.exitPointerLock?.();
+    }
+    this.setAim(null);
+    this.hud.toast(this.fp ? 'First person: you are the engineer' : 'Third person view');
+    sound.select();
+  }
+
   switchTo(i: number) {
     if (!this.walkers[i] || i === this.active) return;
     this.dropAll();
     this.closePanel();
     this.active = i;
     this.goal = null;
+    this.walkers.forEach((x) => x.eng.setBodyVisible(true));
+    this.fpYaw = this.walkers[i].eng.heading;
     this.updateRoleChip();
     const w = this.walkers[i];
     sound.sheet();
@@ -538,7 +564,7 @@ export class Hangar {
     const bb = new THREE.Box3().setFromObject(obj);
     const size = bb.getSize(new THREE.Vector3()).length();
     const s0 = obj.scale.x;
-    const target = Math.min(1, 0.62 / Math.max(0.01, size)) * s0;
+    const target = Math.min(1, (this.fp ? 0.4 : 0.62) / Math.max(0.01, size)) * s0;
     this.carryObjs.set(key, obj);
     sound.pickup();
     this.tween(0.45, (k) => {
@@ -553,12 +579,12 @@ export class Hangar {
       obj.scale.setScalar(lerp(s0, target, e));
     }, () => {
       w.eng.carryAnchor.attach(obj);
-      obj.position.set(0, this.carrying.indexOf(key) * 0.22, 0);
+      obj.position.set(0, this.carrying.indexOf(key) * (this.fp ? 0.12 : 0.22), 0);
     });
     this.onDesignChanged(false);
     if (!this.saidIntro.has('carry')) {
       this.saidIntro.add('carry');
-      this.hud.say(`Got it. Carry the ${partName(key).toLowerCase()} to the glowing blue ring in front of the spacecraft and press E to install it.`, 'FLIGHT', 7000, true);
+      this.hud.say(`Got it: ${partName(key)}. You carry it to the spacecraft and it locks into place. To walk there yourself, use WASD, look at the spacecraft and press E.`, 'FLIGHT', 7000, true);
     }
     if (field !== 'instr' && this.openId) this.closePanel();
     else this.renderPanel();
@@ -804,6 +830,10 @@ export class Hangar {
     if (!st || !this.design) return;
     this.openId = id;
     const w = this.walkers[this.active];
+    if (this.fp) {
+      this.fpLookAt = new THREE.Vector3(st.def.label[0], Math.min(1.6, st.def.label[1] * 0.45), st.def.label[2]);
+      if (this.locked) document.exitPointerLock?.();
+    }
     w.eng.heading = st.def.face;
     w.eng.reach();
     const lab = new THREE.Vector3(...st.def.label);
@@ -840,6 +870,7 @@ export class Hangar {
     if (!this.openId) return;
     this.openId = null;
     this.focus = null;
+    this.fpLookAt = null;
     this.hud.closePanel();
     this.holdUse(false);
   }
@@ -958,6 +989,18 @@ export class Hangar {
   // ------------------------------------------------------------ use key
   use() {
     if (this.mode !== 'play') return;
+    if (this.fp && this.aim && !this.openId) {
+      const a = this.aim;
+      if (a.kind === 'slot' && a.key) {
+        if (this.app.team.enabled && a.sid && stationById(a.sid).role !== this.walkers[this.active].role) return this.pick(a.key);
+        this.walkers[this.active].eng.reach();
+        return this.pick(a.key);
+      }
+      if (a.kind === 'craft' && this.carrying.length) return this.installCarried();
+      if (a.kind === 'station' && a.sid) {
+        this.near = a.sid;
+      }
+    }
     if (this.near === 'install' && this.carrying.length) return this.installCarried();
     if (this.near && this.near !== 'install') {
       if (this.openId === this.near) return this.closePanel();
@@ -1084,6 +1127,26 @@ export class Hangar {
     });
   }
 
+  /** Start the real-looking flight (launch to landing) on this renderer. */
+  startSpace(d: Design, sim: import('../game/simulate').SimResult): SpaceCinema {
+    this.space ??= new SpaceCinema(this.renderer);
+    this.space.setQuality(this.tier);
+    // space is black: never let the light high-bay backdrop show through transparent pixels
+    this.renderer.domElement.style.background = '#000';
+    this.setMode('cinema');
+    this.hud.show('off');
+    this.space.resize(this.renderer.domElement.clientWidth || window.innerWidth, this.renderer.domElement.clientHeight || window.innerHeight);
+    this.space.start(d, sim);
+    return this.space;
+  }
+
+  endSpace() {
+    if (!this.space?.active && this.mode !== 'cinema') return;
+    this.space?.stop();
+    this.renderer.domElement.style.background = '';
+    if (this.app.screen !== 'hangar') this.setMode('off');
+  }
+
   // ------------------------------------------------------------ input
   private bindInput() {
     const el = this.renderer.domElement;
@@ -1120,6 +1183,7 @@ export class Hangar {
         this.switchTo((this.active + 1) % this.walkers.length);
       }
       if (k === 'escape') this.closePanel();
+      if (k === 'v') this.toggleView();
     });
     document.addEventListener('click', (e) => {
       const b = (e.target as HTMLElement).closest?.('#gamehud button') as HTMLElement | null;
@@ -1134,8 +1198,30 @@ export class Hangar {
       this.keys.clear();
       this.holdUse(false);
     });
+    document.addEventListener('pointerlockchange', () => {
+      this.locked = document.pointerLockElement === el;
+    });
+    document.addEventListener('mousemove', (e) => {
+      if (!this.locked || this.mode !== 'play') return;
+      this.fpYaw -= e.movementX * 0.0022;
+      this.fpPitch = Math.max(-1.3, Math.min(1.25, this.fpPitch - e.movementY * 0.0022));
+      this.fpLookAt = null;
+    });
     el.addEventListener('pointerdown', (e) => {
       if (this.mode !== 'play' && this.mode !== 'attract') return;
+      if (this.fp && this.mode === 'play' && e.pointerType === 'mouse') {
+        if (this.locked) {
+          if (e.button === 0) this.use();
+          return;
+        }
+        if (this.openId) this.closePanel();
+        try {
+          const p = (el.requestPointerLock as () => Promise<void> | void)?.call(el);
+          if (p && typeof (p as Promise<void>).catch === 'function') (p as Promise<void>).catch(() => undefined);
+        } catch {
+          /* pointer lock not allowed here: drag to look instead */
+        }
+      }
       this.pointer.down = true;
       this.pointer.drag = false;
       this.pointer.downX = this.pointer.x = e.clientX;
@@ -1152,7 +1238,11 @@ export class Hangar {
       this.pointer.y = e.clientY;
       if (this.pointer.down) {
         if (Math.hypot(e.clientX - this.pointer.downX, e.clientY - this.pointer.downY) > 6) this.pointer.drag = true;
-        if (this.pointer.drag && this.mode === 'play') {
+        if (this.pointer.drag && this.mode === 'play' && this.fp && !this.locked) {
+          this.fpYaw -= dx * 0.005;
+          this.fpPitch = Math.max(-1.3, Math.min(1.25, this.fpPitch - dy * 0.004));
+          this.fpLookAt = null;
+        } else if (this.pointer.drag && this.mode === 'play') {
           this.camYaw -= dx * 0.006;
           this.camPitch = Math.max(-0.15, Math.min(1.25, this.camPitch + dy * 0.004));
           if (this.focus) this.focus.yaw -= dx * 0.006;
@@ -1163,7 +1253,7 @@ export class Hangar {
       const wasDrag = this.pointer.drag;
       this.pointer.down = false;
       this.pointer.drag = false;
-      if (!wasDrag && performance.now() - this.pointer.t0 < 600 && this.mode === 'play') this.click(e.clientX, e.clientY);
+      if (!wasDrag && performance.now() - this.pointer.t0 < 600 && this.mode === 'play' && (!this.fp || e.pointerType !== 'mouse')) this.click(e.clientX, e.clientY);
     });
     el.addEventListener('pointerleave', () => {
       this.setHover(null);
@@ -1247,6 +1337,15 @@ export class Hangar {
   }
   private pendingPick: string | null = null;
   private autoInstallAt = 0;
+  /** first-person view (the default): the camera is the engineer's eyes */
+  fp = true;
+  private fpYaw = Math.PI;
+  private fpPitch = -0.06;
+  private fpLookAt: THREE.Vector3 | null = null;
+  private locked = false;
+  private bob = 0;
+  private aim: { kind: 'slot' | 'station' | 'craft'; key?: string; sid?: StationId; dist: number; obj: THREE.Object3D } | null = null;
+  private aimTimer = 0;
   private screensDirty = true;
 
   // ------------------------------------------------------------ adaptive quality
@@ -1300,6 +1399,7 @@ export class Hangar {
         rt.dispose();
       }
     this.bloom.enabled = t < 3;
+    this.space?.setQuality(t);
     const sm = [2048, 2048, 1024, 1024, 512][t];
     const sun = this.bay.sun;
     if (sun.shadow.mapSize.x !== sm) {
@@ -1425,6 +1525,10 @@ export class Hangar {
       this.pad.update(dt);
       return;
     }
+    if (this.space?.active) {
+      this.space.update(dt);
+      return;
+    }
     // tweens
     for (const t of [...this.tweens]) {
       t.t += dt;
@@ -1518,8 +1622,8 @@ export class Hangar {
       iz = -this.hud.joyVec.y;
       this.goal = null;
     }
-    const fwd = new THREE.Vector2(-Math.sin(this.camYaw), -Math.cos(this.camYaw));
-    const right = new THREE.Vector2(Math.cos(this.camYaw), -Math.sin(this.camYaw));
+    const fwd = this.fp ? new THREE.Vector2(Math.sin(this.fpYaw), Math.cos(this.fpYaw)) : new THREE.Vector2(-Math.sin(this.camYaw), -Math.cos(this.camYaw));
+    const right = this.fp ? new THREE.Vector2(-Math.cos(this.fpYaw), Math.sin(this.fpYaw)) : new THREE.Vector2(Math.cos(this.camYaw), -Math.sin(this.camYaw));
     let want = new THREE.Vector2();
     const run = K.has('shift');
     if (ix || iz) {
@@ -1570,7 +1674,14 @@ export class Hangar {
         }
       }
     const speed = me.vel.length();
-    if (speed > 0.15) me.eng.heading += wrapA(Math.atan2(me.vel.x, me.vel.y) - me.eng.heading) * (1 - Math.exp(-dt * 12));
+    if (this.fp) {
+      // auto-walking: look where you are going; otherwise the body follows the view
+      if (this.goal && speed > 0.3 && !this.fpLookAt) {
+        this.fpYaw += wrapA(Math.atan2(me.vel.x, me.vel.y) - this.fpYaw) * (1 - Math.exp(-dt * 5));
+        this.fpPitch = damp(this.fpPitch, -0.08, 3, dt);
+      }
+      me.eng.heading = this.fpYaw;
+    } else if (speed > 0.15) me.eng.heading += wrapA(Math.atan2(me.vel.x, me.vel.y) - me.eng.heading) * (1 - Math.exp(-dt * 12));
     for (const w of this.walkers) {
       w.eng.root.position.copy(w.pos);
       const v = w === me ? speed : 0;
@@ -1626,6 +1737,83 @@ export class Hangar {
     }
 
     // ---- camera
+    if (this.fp) this.firstPersonCamera(me, speed, dt);
+    else this.thirdPersonCamera(me, speed, dt);
+    // keep the station centred in the part of the screen the panel does not cover
+    const wide = window.innerWidth > 760;
+    const shiftTo = this.openId && wide ? Math.min(440, window.innerWidth * 0.3) / 2 : 0;
+    this.viewShift = damp(this.viewShift, shiftTo, 6, dt);
+    const cw = this.renderer.domElement.clientWidth;
+    const ch = this.renderer.domElement.clientHeight;
+    if (this.viewShift > 0.5) this.camera.setViewOffset(cw, ch, this.viewShift, 0, cw, ch);
+    else if (this.camera.view?.enabled) this.camera.clearViewOffset();
+    if (this.fp) {
+      this.aimTimer += dt;
+      if (this.aimTimer > 0.07) {
+        this.aimTimer = 0;
+        this.updateAim();
+      }
+    }
+    this.hud.crosshair(this.fp && this.mode === 'play', this.locked || matchMedia('(pointer: coarse)').matches || !!this.openId || !!this.goal || this.carrying.length > 0);
+
+    // ---- HUD: labels, hover, minimap
+    this.updateLabels();
+    if (!this.fp) {
+      this.hoverTimer += dt;
+      if (this.hoverTimer > 0.06) {
+        this.hoverTimer = 0;
+        this.updateHover();
+      }
+    }
+    this.mapTimer += dt;
+    if (this.mapTimer > 0.1) {
+      this.mapTimer = 0;
+      this.drawMap();
+    }
+  }
+
+  private firstPersonCamera(me: Walker, speed: number, dt: number) {
+    me.eng.setBodyVisible(false);
+    me.eng.fpHands.visible = me.eng.carrying;
+    const eye = new THREE.Vector3(me.pos.x, 1.62, me.pos.z);
+    if (this.fpLookAt) {
+      const d = this.fpLookAt.clone().sub(eye);
+      this.fpYaw += wrapA(Math.atan2(d.x, d.z) - this.fpYaw) * (1 - Math.exp(-dt * 5));
+      this.fpPitch = damp(this.fpPitch, Math.atan2(d.y, Math.hypot(d.x, d.z)), 5, dt);
+    }
+    // gentle head bob while walking
+    const walk = Math.min(1, speed / 1.6);
+    this.bob += dt * speed * 4.3;
+    eye.y += Math.sin(this.bob * 2) * 0.022 * walk;
+    const rx = -Math.cos(this.fpYaw);
+    const rz = Math.sin(this.fpYaw);
+    eye.x += rx * Math.sin(this.bob) * 0.012 * walk;
+    eye.z += rz * Math.sin(this.bob) * 0.012 * walk;
+    const dir = new THREE.Vector3(Math.sin(this.fpYaw) * Math.cos(this.fpPitch), Math.sin(this.fpPitch), Math.cos(this.fpYaw) * Math.cos(this.fpPitch));
+    this.camPos.copy(eye);
+    this.camTarget.copy(eye).add(dir);
+    this.camera.position.copy(eye);
+    this.camera.lookAt(this.camTarget);
+    if (Math.abs(this.camera.fov - 70) > 0.01 && window.innerWidth >= 700) {
+      this.camera.fov = 70;
+      this.camera.updateProjectionMatrix();
+    }
+    // the carried part sits in your hands, low and to the right of the view
+    const anchorW = eye.clone().add(dir.clone().multiplyScalar(0.55)).add(new THREE.Vector3(rx, 0, rz).multiplyScalar(0.12)).add(new THREE.Vector3(0, -0.3, 0));
+    me.eng.root.updateMatrixWorld();
+    me.eng.carryAnchor.position.copy(me.eng.root.worldToLocal(anchorW));
+    me.eng.carryAnchor.rotation.set(-this.fpPitch * 0.7, 0, 0);
+  }
+
+  private thirdPersonCamera(me: Walker, speed: number, dt: number) {
+    me.eng.setBodyVisible(true);
+    me.eng.fpHands.visible = false;
+    me.eng.carryAnchor.position.set(0, 1.1, 0.42);
+    me.eng.carryAnchor.rotation.set(0, 0, 0);
+    if (Math.abs(this.camera.fov - 52) > 0.01 && window.innerWidth >= 700) {
+      this.camera.fov = 52;
+      this.camera.updateProjectionMatrix();
+    }
     const target = new THREE.Vector3(me.pos.x, 1.45, me.pos.z);
     let yaw = this.camYaw;
     let dist = this.camDist;
@@ -1657,26 +1845,56 @@ export class Hangar {
     this.camPos.z = damp(this.camPos.z, desired.z, 6, dt);
     this.camera.position.copy(this.camPos);
     this.camera.lookAt(this.camTarget);
-    // keep the station centred in the part of the screen the panel does not cover
-    const wide = window.innerWidth > 760;
-    const shiftTo = this.openId && wide ? Math.min(440, window.innerWidth * 0.3) / 2 : 0;
-    this.viewShift = damp(this.viewShift, shiftTo, 6, dt);
-    const cw = this.renderer.domElement.clientWidth;
-    const ch = this.renderer.domElement.clientHeight;
-    if (this.viewShift > 0.5) this.camera.setViewOffset(cw, ch, this.viewShift, 0, cw, ch);
-    else if (this.camera.view?.enabled) this.camera.clearViewOffset();
+  }
 
-    // ---- HUD: labels, hover, minimap
-    this.updateLabels();
-    this.hoverTimer += dt;
-    if (this.hoverTimer > 0.06) {
-      this.hoverTimer = 0;
-      this.updateHover();
+  /** What is under the crosshair (first person)? */
+  private updateAim() {
+    if (this.openId || this.mode !== 'play') {
+      this.setAim(null);
+      return;
     }
-    this.mapTimer += dt;
-    if (this.mapTimer > 0.1) {
-      this.mapTimer = 0;
-      this.drawMap();
+    this.ray.setFromCamera(new THREE.Vector2(this.viewShift > 0.5 ? -((this.viewShift * 2) / this.renderer.domElement.clientWidth) : 0, 0), this.camera);
+    this.ray.far = 7;
+    const hits = this.ray.intersectObjects([this.stationGroup, this.craftHolder], true);
+    this.ray.far = Infinity;
+    let found: typeof this.aim = null;
+    for (const h of hits) {
+      let o: THREE.Object3D | null = h.object;
+      let vis = true;
+      while (o) {
+        if (!o.visible) vis = false;
+        o = o.parent;
+      }
+      if (!vis) continue;
+      const ud = h.object.userData;
+      if (ud.slotKey && h.distance < 4.8) found = { kind: 'slot', key: ud.slotKey, sid: ud.stationId, dist: h.distance, obj: h.object };
+      else if (ud.craft && h.distance < 7) found = { kind: 'craft', dist: h.distance, obj: h.object };
+      else if (ud.stationId && h.distance < 4.5) found = { kind: 'station', sid: ud.stationId, dist: h.distance, obj: h.object };
+      break;
+    }
+    this.setAim(found);
+  }
+
+  private setAim(a: typeof this.aim) {
+    this.aim = a;
+    if (!a) {
+      this.hud.aimLabel(null);
+      if (this.hovered) this.setHover(null);
+      return;
+    }
+    const d = this.design!;
+    if (a.kind === 'slot' && a.key) {
+      const f = this.slot(a.key);
+      if (f) this.setHover(f.s.obj);
+      const rocket = a.key.startsWith('rocketId:');
+      this.hud.aimLabel(`<b>${partName(a.key, d, this.app.ev!)}</b><span><kbd>E</kbd> ${rocket ? 'Choose this rocket' : 'Pick it up'}</span>`);
+    } else if (a.kind === 'craft') {
+      this.setHover(null);
+      const tip = this.craftTip(a.obj);
+      this.hud.aimLabel(this.carrying.length ? `<b>Your spacecraft</b><span><kbd>E</kbd> Install ${this.carrying.length > 1 ? `${this.carrying.length} parts` : partName(this.carrying[0])}</span>` : tip ? `<b>${tip.split(' · ')[0]}</b><span>on the spacecraft</span>` : `<b>Your spacecraft</b>`);
+    } else if (a.kind === 'station' && a.sid) {
+      this.setHover(null);
+      this.hud.aimLabel(`<b>${stationById(a.sid).name}</b><span><kbd>E</kbd> Use</span>`);
     }
   }
 
