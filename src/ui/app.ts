@@ -11,6 +11,7 @@ import { BODIES, BodyId } from '../physics/constants';
 import { PorkchopGrid, computeGrid, transferAt } from '../physics/porkchop';
 import { formatDuration, formatJD, formatJDShort } from '../physics/time';
 import { CraftPreview } from '../scene/preview';
+import { planetTexture } from '../scene/textures';
 import { SolarSystemView } from '../scene/solarSystem';
 import { $, $$, countdown, esc, fmtInt, fmtKg, toast, tween } from './dom';
 import { FlightPlayer } from './flight';
@@ -592,6 +593,7 @@ export class App {
     document.body.dataset.route = this.routeMode ?? '';
     const bay = this.screen === 'title' || this.screen === 'select' || this.screen === 'hangar';
     this.view.setRunning(!bay);
+    this.hangar.attractShift = this.screen === 'select' && window.innerWidth > 900 ? Math.round(window.innerWidth * 0.22) : this.screen === 'title' && window.innerWidth > 900 ? Math.round(window.innerWidth * 0.12) : 0;
     if (this.screen === 'title' || this.screen === 'select') this.hangar.preview(this.previewDesign(this.select.missionId));
     else if (this.screen !== 'hangar' && this.hangar.mode !== 'cinema') this.hangar.setMode('off');
     this.view.setViewInset(window.innerWidth <= 900 ? 0 : this.screen === 'design' ? 440 : this.screen === 'title' ? Math.round(window.innerWidth * 0.55) : 0);
@@ -685,7 +687,7 @@ export class App {
   private clickSound(act: string) {
     if (act === 'sound' || act === 'launch-hint' || act === 'home') return;
     if (act === 'tab' || act === 'begin' || act === 'to-select' || act === 'redesign' || act === 'next-mission' || act === 'howto') sound.sheet();
-    else if (['set', 'instr', 'route', 'dish', 'zoom', 'unzoom', 'best', 'pick-mission', 'pick-diff', 'pick-mode', 'pick-count', 'autoprop', 'speed'].includes(act)) sound.select();
+    else if (['set', 'instr', 'route', 'dish', 'zoom', 'unzoom', 'best', 'pick-mission', 'pick-diff', 'pick-mode', 'pick-count', 'pick-crew', 'pick-objective', 'autoprop', 'speed'].includes(act)) sound.select();
     else sound.click();
   }
 
@@ -1104,7 +1106,12 @@ export class App {
   renderOverlay() {
     const o = $('#overlay');
     if (this.screen === 'title') o.innerHTML = this.titleHTML();
-    else if (this.screen === 'select') o.innerHTML = this.selectHTML();
+    else if (this.screen === 'select') {
+      o.innerHTML = this.selectHTML();
+      const node = o.querySelector('.ms-node.sel') as HTMLElement | null;
+      const map = o.querySelector('.ms-map') as HTMLElement | null;
+      if (node && map && map.scrollWidth > map.clientWidth) map.scrollTo({ left: node.offsetLeft - (map.clientWidth - node.offsetWidth) / 2, behavior: 'smooth' });
+    }
     else if (this.screen === 'report' && this.sim) o.innerHTML = renderReport(this);
     else o.innerHTML = '';
     const changed = this.overlayScreen !== this.screen;
@@ -1162,41 +1169,114 @@ export class App {
       </ul></div>`;
   }
 
+  private lastSel = '';
+  private planetURL = new Map<string, string>();
+  private planetImg(id: BodyId): string {
+    let u = this.planetURL.get(id);
+    if (!u) {
+      u = (planetTexture(id).image as HTMLCanvasElement).toDataURL('image/jpeg', 0.9);
+      this.planetURL.set(id, u);
+    }
+    return u;
+  }
+
   private selectHTML(): string {
     const s = this.select;
-    const cards = MISSIONS.map((m) => `
-      <button class="mission-card ${s.missionId === m.id ? 'sel' : ''}" data-act="pick-mission" data-val="${m.id}">
-        <span class="planet-ball ${m.target}"></span>
-        <span class="lvl ${m.level.toLowerCase()}">${m.level}</span>
-        <span class="mc-name">${esc(m.name)}</span>
-        <span class="mc-target">${BODIES[m.target].name} · ${m.type}</span>
-        <span class="mc-tag">${esc(m.tagline)}</span>
-        <span class="mc-budget">Budget cap $${fmtM(m.budgetCapM)}</span>
-      </button>`).join('');
     const m = missionById(s.missionId);
-    return `<div class="select-card">
-      <button class="close" data-act="to-title" aria-label="Back">←</button>
-      <h2>Choose your mission</h2>
-      <div class="mission-cards">${cards}</div>
-      <div class="brief"><b>${esc(m.name)}:</b> ${esc(m.brief)}</div>
-      <div class="objectives"><h4>Choose your science objective</h4><div class="obj-tiles">${m.objectives.map((o, i) => {
-        const sel = (s.objectiveId || m.objectives[0].id) === o.id;
-        return `<button class="obj ${sel ? 'sel' : ''}" data-act="pick-objective" data-val="${o.id}" aria-pressed="${sel}"><span class="obj-n">0${i + 1}</span><b>${esc(o.name)}</b><span>${esc(o.desc)}</span></button>`;
-      }).join('')}</div></div>
-      <div class="select-row">
-        <div><h4>Difficulty</h4><div class="seg">${(['easy', 'normal', 'hard', 'sandbox'] as Difficulty[]).map((x) => `<button class="${s.difficulty === x ? 'on' : ''}" data-act="pick-diff" data-val="${x}">${x[0].toUpperCase() + x.slice(1)}</button>`).join('')}</div>
-          <p class="small-note">${{ easy: '+20% budget, gentle random events, tips open.', normal: 'Realistic. Expect surprises, like a budget cut.', hard: 'Rockets can fail, more breakdowns, no tips. Score ×1.25.', sandbox: 'Huge budget, no random events. Just experiment (score ×0.5).' }[s.difficulty]}</p></div>
-        <div><h4>Players</h4><div class="seg"><button class="${!s.team ? 'on' : ''}" data-act="pick-mode" data-val="solo">Solo</button><button class="${s.team ? 'on' : ''}" data-act="pick-mode" data-val="team">Team (2-4)</button></div>
-          ${s.team ? `<div class="players">
-            <div class="seg small">${[2, 3, 4].map((n) => `<button class="${s.count === n ? 'on' : ''}" data-act="pick-count" data-val="${n}">${n} players</button>`).join('')}</div>
-            ${Array.from({ length: s.count }, (_, i) => `<input class="pname" data-idx="${i}" placeholder="Player ${i + 1} name" value="${esc(s.players[i])}" maxlength="16">`).join('')}
-            <p class="small-note">Roles: ${ROLE_ORDER.map((r, i) => `<b style="color:${ROLE_INFO[r].color}">${ROLE_INFO[r].title}</b> → P${(i % s.count) + 1}`).join(' · ')}</p></div>` : ''}
+    const idx = MISSIONS.indexOf(m);
+    const swap = this.lastSel !== m.id;
+    this.lastSel = m.id;
+    const ACC: Record<string, string> = { mars: '#ff7b47', jupiter: '#f2b56b', pluto: '#9cc3ff' };
+    const FACT: Record<string, { au: string; trip: string; craft: string }> = {
+      mars: { au: '1.5 AU', trip: '~7 months', craft: 'Rover' },
+      jupiter: { au: '5.2 AU', trip: '2 to 5 years', craft: 'Orbiter' },
+      pluto: { au: '39.5 AU', trip: '9 to 12 years', craft: 'Flyby probe' },
+    };
+    const f = FACT[m.id] ?? { au: '', trip: '', craft: m.type };
+    const lb = loadLeaderboard();
+    const best = (id: string) => lb.filter((e) => e.missionId === id).reduce((x, e) => Math.max(x, e.score), 0);
+    const pips = (lvl: string) => {
+      const n = lvl === 'Beginner' ? 1 : lvl === 'Intermediate' ? 2 : 3;
+      return `<span class="ms-pips" aria-label="${lvl}">${[1, 2, 3].map((i) => `<i class="${i <= n ? 'on' : ''}"></i>`).join('')}</span>`;
+    };
+    const I = (d: string) => `<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+    const OBJ_ICON: Record<string, string> = {
+      life: I('<circle cx="10" cy="10" r="5.5"/><path d="M14 14l6 6M8 9.5c1-1.5 3-1.5 4 0"/>'),
+      humans: I('<circle cx="12" cy="10" r="6.5"/><path d="M8.5 9.5h7v2.5a3.5 3.5 0 0 1-7 0z"/><path d="M6 21c1-2.8 3.4-4 6-4s5 1.2 6 4"/>'),
+      water: I('<path d="M12 3.5c3 4 5.5 7 5.5 10a5.5 5.5 0 0 1-11 0c0-3 2.5-6 5.5-10z"/><path d="M9.5 14a2.5 2.5 0 0 0 2.5 2.5"/>'),
+      interior: I('<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.8"/>'),
+      aurora: I('<path d="M3 17c3-8 6-11 9-11s6 3 9 11"/><path d="M6 17c2-5 4-7 6-7s4 2 6 7"/><path d="M3 20h18"/>'),
+      moons: I('<circle cx="11" cy="12" r="5.5"/><circle cx="19.5" cy="6.5" r="1.6"/><circle cx="4" cy="19" r="1.3"/><path d="M3 12.5c4 2.2 12 2.2 16 0"/>'),
+      geology: I('<path d="M2.5 19l6-10 4 6 3-4 6 8z"/><path d="M8.5 9l1.5 2.5"/>'),
+      atmosphere: I('<path d="M3 8h11a3 3 0 1 0-3-3M3 13h15a3 3 0 1 1-3 3M3 18h7"/>'),
+      kuiper: I('<circle cx="5" cy="7" r="1.4"/><circle cx="11" cy="4.5" r="1"/><circle cx="17" cy="8" r="1.8"/><circle cx="8" cy="14" r="1.2"/><circle cx="15" cy="15" r="1"/><circle cx="19.5" cy="18" r="1.3"/><circle cx="5.5" cy="19.5" r="1"/>'),
+    };
+    const diffNote: Record<Difficulty, string> = {
+      easy: '+20% budget, gentle events, tips on.',
+      normal: 'Realistic. Expect surprises, like a budget cut.',
+      hard: 'Rockets can fail, more breakdowns, no tips. Score ×1.25.',
+      sandbox: 'Huge budget, no random events. Score ×0.5.',
+    };
+    const objId = s.objectiveId || m.objectives[0].id;
+    const nodes = MISSIONS.map((mm, i) => {
+      const sel = mm.id === m.id;
+      const b = best(mm.id);
+      return `<button class="ms-node ${sel ? 'sel' : ''}" data-act="pick-mission" data-val="${mm.id}" style="--mc:${ACC[mm.id]}" aria-pressed="${sel}">
+        <span class="ms-ball" style="background-image:url(${this.planetImg(mm.target)})"></span>
+        <span class="ms-nt"><small>0${i + 1} · ${FACT[mm.id]?.au ?? ''}</small><b>${esc(mm.name)}</b><span>${BODIES[mm.target].name} ${pips(mm.level)}</span>${b ? `<em>Best ${fmtInt(b)}</em>` : ''}</span>
+      </button>`;
+    }).join('<i class="ms-leg"></i>');
+    return `<div class="ms ${swap ? 'swap' : ''}" style="--mc:${ACC[m.id]}">
+      <header class="ms-top">
+        <button class="ms-back" data-act="to-title" aria-label="Back to title">←</button>
+        <div class="ms-crumb"><span>Mission Architect</span><b>Mission select</b></div>
+      </header>
+      <section class="ms-dossier" aria-live="polite">
+        <div class="ms-head">
+          <div class="ms-planet" style="background-image:url(${this.planetImg(m.target)})"><i></i></div>
+          <div class="ms-id">
+            <div class="ms-kicker"><span>Mission 0${idx + 1}</span><span>${BODIES[m.target].name}</span><span>${esc(f.craft)}</span>${pips(m.level)}</div>
+            <h2>${esc(m.name)}</h2>
+            <p class="ms-tag">${esc(m.tagline)}</p>
+          </div>
         </div>
-      </div>
-      <div class="select-actions">
-        <button class="btn ghost big" data-act="nasa-design" data-tip="Load a design modelled on the real NASA mission and go straight to launch.">Fly NASA's design</button>
-        <button class="btn big" data-act="begin">Design my own →</button>
-      </div>
+        <p class="ms-brief">${esc(m.brief)}</p>
+        <div class="ms-stats">
+          <div><i>From the Sun</i><b>${f.au}</b></div>
+          <div><i>Trip</i><b>${f.trip}</b></div>
+          <div><i>Budget cap</i><b>$${fmtM(m.budgetCapM)}</b></div>
+          <div><i>Compare with</i><b>${esc(m.nasa.name)}</b></div>
+        </div>
+        <div class="ms-sec"><span>Science goal</span><em>instruments that serve it score more</em></div>
+        <div class="ms-objs">${m.objectives.map((o) => {
+          const sel = objId === o.id;
+          return `<button class="ms-obj ${sel ? 'sel' : ''}" data-act="pick-objective" data-val="${o.id}" aria-pressed="${sel}"><span class="ms-oi">${OBJ_ICON[o.id] ?? ''}</span><b>${esc(o.name)}</b><span>${esc(o.desc)}</span></button>`;
+        }).join('')}</div>
+        <div class="ms-row">
+          <div class="ms-col"><div class="ms-sec"><span>Difficulty</span></div>
+            <div class="ms-seg">${(['easy', 'normal', 'hard', 'sandbox'] as Difficulty[]).map((x) => `<button class="${s.difficulty === x ? 'on' : ''}" data-act="pick-diff" data-val="${x}">${x[0].toUpperCase() + x.slice(1)}</button>`).join('')}</div>
+            <p class="ms-note">${diffNote[s.difficulty]}</p></div>
+          <div class="ms-col"><div class="ms-sec"><span>Crew</span></div>
+            <div class="ms-seg"><button class="${!s.team ? 'on' : ''}" data-act="pick-mode" data-val="solo">Solo</button>${[2, 3, 4].map((n) => `<button class="${s.team && s.count === n ? 'on' : ''}" data-act="pick-crew" data-val="${n}">${n} players</button>`).join('')}</div>
+            ${s.team
+              ? `<div class="ms-crew">${Array.from({ length: s.count }, (_, i) => {
+                  const roles = ROLE_ORDER.filter((_r, k) => k % s.count === i);
+                  const c = ROLE_INFO[roles[0]].color;
+                  return `<label style="--rc:${c}"><input class="pname" data-idx="${i}" placeholder="Player ${i + 1}" value="${esc(s.players[i])}" maxlength="16"><small>${roles.map((r) => ({ flight: 'Flight', engineer: 'Engineer', science: 'Science', ops: 'Ground' })[r]).join(' + ')}</small></label>`;
+                }).join('')}</div>`
+              : `<p class="ms-note">One engineer runs every station. Pick a team to share the roles.</p>`}
+          </div>
+        </div>
+        <div class="ms-cta">
+          <button class="ms-go" data-act="begin"><span>Design my own</span><small>Start with a rough spacecraft and fix it</small><i>→</i></button>
+          <button class="ms-nasa" data-act="nasa-design"><span>Fly NASA's design</span><small>${esc(NASA_PRESET_NAME[m.id])}, ready to launch</small></button>
+        </div>
+      </section>
+      <div class="ms-stand"><i></i><span>On the stand</span><b>${esc(NASA_PRESET_NAME[m.id])}</b></div>
+      <nav class="ms-map" aria-label="Missions">
+        <div class="ms-earth"><span class="ms-ball" style="background-image:url(${this.planetImg('earth')})"></span><span class="ms-nt"><small>1 AU</small><b>Earth</b><span>Launch site</span></span></div>
+        <i class="ms-leg"></i>${nodes}
+      </nav>
     </div>`;
   }
 
@@ -1351,6 +1431,7 @@ export class App {
       case 'pick-diff': this.select.difficulty = el.dataset.val as Difficulty; this.renderOverlay(); break;
       case 'pick-mode': this.select.team = el.dataset.val === 'team'; this.renderOverlay(); break;
       case 'pick-count': this.select.count = Number(el.dataset.val); this.renderOverlay(); break;
+      case 'pick-crew': this.select.team = true; this.select.count = Number(el.dataset.val); this.renderOverlay(); break;
       case 'nasa-design':
         this.loadNasaDesign(this.select.missionId, this.select.difficulty);
         break;

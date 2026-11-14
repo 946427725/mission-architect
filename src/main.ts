@@ -1,5 +1,6 @@
 import './style.css';
 import './hangar.css';
+import './select.css';
 import { App } from './ui/app';
 
 function webglAvailable() {

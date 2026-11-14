@@ -81,6 +81,8 @@ export class Hangar {
   private fixture = new THREE.Group();
   private craft: THREE.Group | null = null;
   private craftKey = '';
+  private craftSize = 3;
+  private craftHeight = 2;
   private stationGroup = new THREE.Group();
   stations: BuiltStation[] = [];
   private missionKey = '';
@@ -387,6 +389,8 @@ export class Hangar {
     this.craftKey = key;
     if (this.craft) this.craftHolder.remove(this.craft);
     const b = buildRealCraft(d);
+    this.craftSize = b.radius;
+    this.craftHeight = b.height;
     this.craft = b.model;
     const lander = missionOf(d).type === 'lander';
     this.craft.position.y = lander ? 0 : 1.05;
@@ -1387,12 +1391,27 @@ export class Hangar {
   shadowFrames = 3;
   private viewShift = 0;
 
+  /** Pixels to push the attract-mode spacecraft to the right (to make room for UI on the left). */
+  attractShift = 0;
+  private attractR = 11.5;
+  private attractShiftNow = 0;
+
   private updateAttract(dt: number) {
     this.attractT += dt;
-    const a = this.attractT * 0.07 + 0.6;
-    const r = 11.5;
-    this.camera.position.set(CRAFT_POS.x + Math.sin(a) * r, 3.4 + Math.sin(this.attractT * 0.11) * 0.8, CRAFT_POS.z + Math.cos(a) * r);
-    this.camera.lookAt(CRAFT_POS.x, 2.0, CRAFT_POS.z);
+    // sweep across the front of the stand (the work platform stands behind it)
+    const a = 0.3 + Math.sin(this.attractT * 0.09) * 0.85;
+    // frame the spacecraft by its size: a Spirit-size rover close up, Juno's wings from further back
+    const want = this.attractShift > 0 ? Math.max(7.6, Math.min(11.5, this.craftSize * 1.3 + 5.4)) : 11.5;
+    this.attractR = damp(this.attractR, want, 2, dt);
+    const r = this.attractR;
+    const h = this.attractShift > 0 ? 1.4 + r * 0.3 : 3.4;
+    this.camera.position.set(CRAFT_POS.x + Math.sin(a) * r, h + Math.sin(this.attractT * 0.11) * 0.5, CRAFT_POS.z + Math.cos(a) * r);
+    this.camera.lookAt(CRAFT_POS.x, this.attractShift > 0 ? Math.min(2.6, 0.5 + this.craftHeight * 0.45) : 2.0, CRAFT_POS.z);
+    this.attractShiftNow = damp(this.attractShiftNow, this.attractShift, 4, dt);
+    const cw = this.renderer.domElement.clientWidth;
+    const ch = this.renderer.domElement.clientHeight;
+    if (this.attractShiftNow > 0.5) this.camera.setViewOffset(cw, ch, -this.attractShiftNow, 0, cw, ch);
+    else if (this.camera.view?.enabled) this.camera.clearViewOffset();
     for (const w of this.walkers) w.eng.root.visible = false;
   }
 

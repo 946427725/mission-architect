@@ -1,0 +1,212 @@
+/* Mission select: a briefing dossier on the left, the real spacecraft on the
+   stand behind it on the right, and a route map Earth → Mars → Jupiter → Pluto. */
+body[data-screen='select'] #topbar { display: none; }
+body[data-screen='select'] #overlay.show { display: block; padding: 0; background: none; overflow-y: auto; overflow-x: hidden; }
+
+.ms {
+  --ms-text: #eef3f8;
+  --ms-mute: #9fb1c3;
+  --ms-line: rgba(255, 255, 255, 0.12);
+  --ms-glass: rgba(14, 19, 27, 0.62);
+  position: relative;
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 660px) minmax(0, 1fr);
+  grid-template-rows: auto 1fr auto;
+  column-gap: 32px;
+  padding: 18px max(16px, 3.2vw) 0;
+  color: var(--ms-text);
+  font-family: var(--text);
+  background:
+    radial-gradient(60% 70% at 8% 18%, color-mix(in srgb, var(--mc) 16%, transparent), transparent 70%),
+    linear-gradient(90deg, rgba(4, 7, 11, 0.95) 0%, rgba(4, 7, 11, 0.88) 32%, rgba(4, 7, 11, 0.4) 54%, rgba(4, 7, 11, 0) 72%),
+    linear-gradient(0deg, rgba(4, 7, 11, 0.92) 0%, rgba(4, 7, 11, 0) 24%);
+  transition: --mc 0.6s;
+}
+
+/* top crumb */
+.ms-top { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; }
+.ms-back { width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--ms-line); background: var(--ms-glass); color: var(--ms-text); font-size: 18px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); transition: border-color 0.2s, transform 0.2s; }
+.ms-back:hover { border-color: var(--mc); transform: translateX(-2px); }
+.ms-crumb { display: flex; flex-direction: column; }
+.ms-crumb span { font: 600 10px var(--mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ms-mute); }
+.ms-crumb b { font: 800 15px var(--display); font-stretch: 115%; text-transform: uppercase; letter-spacing: 0.02em; }
+
+/* dossier */
+.ms-dossier { grid-column: 1; align-self: center; padding: 18px 0 24px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.ms-head { display: flex; align-items: center; gap: 26px; }
+.ms-planet {
+  position: relative; flex: 0 0 auto; width: 132px; height: 132px; border-radius: 50%;
+  background-size: auto 100%; background-repeat: repeat-x;
+  box-shadow: inset -30px -16px 42px rgba(0, 0, 0, 0.88), inset 6px 4px 14px rgba(255, 255, 255, 0.12), 0 0 70px color-mix(in srgb, var(--mc) 40%, transparent);
+  animation: msSpin 48s linear infinite;
+}
+.ms-planet::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle at 30% 26%, rgba(255, 255, 255, 0.32), transparent 46%); }
+.ms-planet i { position: absolute; inset: -16px -26px; border-radius: 50%; border: 1px solid color-mix(in srgb, var(--mc) 55%, transparent); transform: rotate(-18deg) scaleY(0.36); pointer-events: none; }
+.ms-planet i::after { content: ''; position: absolute; width: 7px; height: 7px; margin: -3.5px; border-radius: 50%; background: #fff; box-shadow: 0 0 10px var(--mc), 0 0 2px #fff; offset-path: ellipse(50% 50% at 50% 50%); animation: msOrbit 6s linear infinite; left: 0; top: 0; }
+@supports not (offset-path: ellipse(50% 50% at 50% 50%)) { .ms-planet i::after { display: none; } }
+@keyframes msSpin { from { background-position-x: 0; } to { background-position-x: -264px; } }
+@keyframes msOrbit { from { offset-distance: 0%; } to { offset-distance: 100%; } }
+.ms-id { min-width: 0; }
+.ms-kicker { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; font: 600 10.5px var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ms-mute); }
+.ms-kicker > span:first-child { color: var(--mc); }
+.ms-kicker > span + span::before { content: '/'; margin-right: 12px; opacity: 0.4; }
+.ms-pips { display: inline-flex; gap: 3px; vertical-align: middle; }
+.ms-pips i { width: 14px; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.18); }
+.ms-pips i.on { background: var(--mc); box-shadow: 0 0 8px color-mix(in srgb, var(--mc) 60%, transparent); }
+.ms h2 {
+  margin: 8px 0 6px; font: 800 clamp(44px, 5.2vw, 84px) var(--display); font-stretch: 125%; text-transform: uppercase; line-height: 0.88; letter-spacing: -0.01em;
+  background: linear-gradient(180deg, #ffffff 30%, color-mix(in srgb, var(--mc) 55%, #ffffff) 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+  text-wrap: balance;
+}
+.ms-tag { margin: 0; font-size: 17px; line-height: 1.35; color: var(--ms-text); max-width: 34ch; }
+.ms-brief { margin: 2px 0 0; font-size: 14px; line-height: 1.6; color: var(--ms-mute); max-width: 60ch; }
+.ms-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 4px; }
+.ms-stats div { padding: 10px 12px 11px; border-radius: 12px; background: var(--ms-glass); border: 1px solid var(--ms-line); position: relative; overflow: hidden; min-width: 0; }
+.ms-stats div::before { content: ''; position: absolute; left: 0; top: 0; width: 100%; height: 2px; background: linear-gradient(90deg, var(--mc), transparent); }
+.ms-stats i { display: block; font: 600 9.5px var(--mono); font-style: normal; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ms-mute); }
+.ms-stats b { display: block; margin-top: 3px; font: 700 15px var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.ms-sec { display: flex; align-items: baseline; gap: 10px; margin-top: 6px; font: 600 10.5px var(--mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ms-text); }
+.ms-sec::after { content: ''; flex: 1; height: 1px; background: var(--ms-line); align-self: center; }
+.ms-sec em { font-style: normal; letter-spacing: 0.04em; text-transform: none; color: var(--ms-mute); font-family: var(--text); font-size: 12px; order: 2; }
+.ms-sec::after { order: 1; }
+
+.ms-objs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.ms-obj { position: relative; text-align: left; display: flex; flex-direction: column; gap: 4px; padding: 12px 13px 13px; border-radius: 14px; border: 1px solid var(--ms-line); background: var(--ms-glass); color: var(--ms-text); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); transition: border-color 0.25s, background 0.25s, transform 0.2s, box-shadow 0.25s; min-width: 0; }
+.ms-obj:hover { border-color: color-mix(in srgb, var(--mc) 60%, transparent); transform: translateY(-2px); }
+.ms-obj b { font-size: 14px; line-height: 1.25; }
+.ms-obj > span:last-child { font-size: 12px; line-height: 1.4; color: var(--ms-mute); }
+.ms-oi { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: rgba(255, 255, 255, 0.07); color: var(--ms-text); margin-bottom: 4px; transition: background 0.25s, color 0.25s; }
+.ms-oi svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.ms-obj.sel { border-color: var(--mc); background: color-mix(in srgb, var(--mc) 14%, rgba(14, 19, 27, 0.7)); box-shadow: 0 10px 30px color-mix(in srgb, var(--mc) 18%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--mc) 40%, transparent); }
+.ms-obj.sel .ms-oi { background: var(--mc); color: #0b0f14; }
+.ms-obj.sel::after { content: '✓'; position: absolute; top: 10px; right: 11px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--mc); color: #0b0f14; font: 800 11px var(--mono); }
+
+.ms-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
+.ms-col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.ms-seg { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px; border-radius: 12px; background: var(--ms-glass); border: 1px solid var(--ms-line); align-self: flex-start; }
+.ms-seg button { border: 0; border-radius: 9px; background: transparent; color: var(--ms-mute); padding: 7px 11px; font-weight: 700; font-size: 12.5px; transition: background 0.2s, color 0.2s; }
+.ms-seg button:hover { color: var(--ms-text); }
+.ms-seg button.on { background: var(--ms-text); color: #0b0f14; }
+.ms-note { margin: 0; font-size: 12px; color: var(--ms-mute); }
+.ms-crew { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.ms-crew label { display: flex; flex-direction: column; gap: 2px; padding: 6px 9px; border-radius: 10px; background: var(--ms-glass); border: 1px solid var(--ms-line); border-left: 3px solid var(--rc); min-width: 0; }
+.ms-crew input { border: 0; background: transparent; color: var(--ms-text); font: 700 13px var(--text); padding: 0; outline: none; min-width: 0; }
+.ms-crew input::placeholder { color: var(--ms-mute); }
+.ms-crew small { font: 500 9.5px var(--mono); color: var(--ms-mute); letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.ms-cta { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 10px; margin-top: 8px; }
+.ms-go, .ms-nasa { position: relative; overflow: hidden; text-align: left; display: flex; flex-direction: column; gap: 2px; padding: 15px 18px; border-radius: 16px; font-family: var(--text); transition: transform 0.2s, box-shadow 0.3s, border-color 0.2s; }
+.ms-go { border: 0; background: var(--mc); color: #0b0f14; box-shadow: 0 14px 40px color-mix(in srgb, var(--mc) 35%, transparent); padding-right: 56px; }
+.ms-go span, .ms-nasa span { font: 800 17px var(--display); font-stretch: 112%; text-transform: uppercase; letter-spacing: 0.01em; }
+.ms-go small, .ms-nasa small { font-size: 12px; opacity: 0.75; }
+.ms-go i { position: absolute; right: 18px; top: 50%; transform: translateY(-50%); font-style: normal; font-size: 24px; font-weight: 800; transition: transform 0.25s; }
+.ms-go::before { content: ''; position: absolute; top: 0; bottom: 0; width: 40%; left: -60%; background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.55), transparent); transform: skewX(-18deg); animation: msShine 3.6s ease-in-out infinite 1.2s; }
+.ms-go:hover { transform: translateY(-2px); box-shadow: 0 18px 50px color-mix(in srgb, var(--mc) 50%, transparent); }
+.ms-go:hover i { transform: translate(4px, -50%); }
+.ms-nasa { border: 1px solid var(--ms-line); background: var(--ms-glass); color: var(--ms-text); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+.ms-nasa:hover { border-color: var(--mc); transform: translateY(-2px); }
+@keyframes msShine { 0%, 60% { left: -60%; } 100% { left: 130%; } }
+
+/* "on the stand" tag beside the 3D spacecraft */
+.ms-stand { grid-column: 2; grid-row: 2; align-self: end; justify-self: center; margin-bottom: 18px; display: flex; align-items: center; gap: 10px; padding: 8px 14px 8px 12px; border-radius: 999px; background: rgba(9, 13, 19, 0.6); border: 1px solid var(--ms-line); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.ms-stand i { width: 8px; height: 8px; border-radius: 50%; background: var(--mc); box-shadow: 0 0 0 0 var(--mc); animation: msPing 1.8s infinite; }
+.ms-stand span { font: 600 10px var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ms-mute); }
+.ms-stand b { font-size: 13.5px; }
+@keyframes msPing { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--mc) 70%, transparent); } 100% { box-shadow: 0 0 0 12px transparent; } }
+
+/* route map */
+.ms-map { grid-column: 1 / -1; display: flex; align-items: center; gap: 0; padding: 10px 0 22px; }
+.ms-node, .ms-earth { flex: 0 0 auto; display: flex; align-items: center; gap: 12px; padding: 8px 16px 8px 8px; border-radius: 999px; text-align: left; color: var(--ms-text); }
+.ms-earth { opacity: 0.75; }
+.ms-node { border: 1px solid var(--ms-line); background: var(--ms-glass); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); transition: border-color 0.25s, transform 0.25s, background 0.25s, box-shadow 0.25s; }
+.ms-node:hover { border-color: color-mix(in srgb, var(--mc) 70%, transparent); transform: translateY(-3px); }
+.ms-node.sel { border-color: var(--mc); background: color-mix(in srgb, var(--mc) 16%, rgba(14, 19, 27, 0.8)); box-shadow: 0 0 0 4px color-mix(in srgb, var(--mc) 18%, transparent), 0 12px 34px rgba(0, 0, 0, 0.35); }
+.ms-ball { width: 44px; height: 44px; border-radius: 50%; flex: 0 0 auto; background-size: auto 100%; background-repeat: repeat-x; box-shadow: inset -10px -6px 14px rgba(0, 0, 0, 0.85), inset 2px 2px 6px rgba(255, 255, 255, 0.15); animation: msSpinS 30s linear infinite; background-size: 88px 44px; }
+.ms-node.sel .ms-ball { width: 54px; height: 54px; background-size: 108px 54px; animation-name: msSpinL; box-shadow: inset -12px -7px 16px rgba(0, 0, 0, 0.85), 0 0 22px color-mix(in srgb, var(--mc) 60%, transparent); }
+@keyframes msSpinS { from { background-position-x: 0; } to { background-position-x: -88px; } }
+@keyframes msSpinL { from { background-position-x: 0; } to { background-position-x: -108px; } }
+.ms-nt { display: flex; flex-direction: column; line-height: 1.2; }
+.ms-nt small { font: 600 9.5px var(--mono); letter-spacing: 0.12em; color: var(--ms-mute); }
+.ms-nt b { font: 800 14px var(--display); font-stretch: 112%; text-transform: uppercase; }
+.ms-nt > span { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--ms-mute); }
+.ms-nt em { font: 700 10.5px var(--mono); font-style: normal; color: var(--mc); }
+.ms-leg { flex: 1 1 24px; min-width: 18px; height: 2px; margin: 0 6px; background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.35) 0 8px, transparent 8px 16px); background-size: 32px 2px; animation: msDash 1.6s linear infinite; opacity: 0.7; }
+@keyframes msDash { to { background-position-x: 32px; } }
+
+/* entrance + mission swap motion */
+#overlay.enter .ms-dossier > * { animation: msIn 0.8s var(--ease) both; }
+#overlay.enter .ms-dossier > *:nth-child(2) { animation-delay: 0.06s; }
+#overlay.enter .ms-dossier > *:nth-child(3) { animation-delay: 0.12s; }
+#overlay.enter .ms-dossier > *:nth-child(n + 4) { animation-delay: 0.18s; }
+#overlay.enter .ms-map { animation: msUp 0.9s var(--ease) both 0.25s; }
+.ms.swap .ms-id, .ms.swap .ms-brief, .ms.swap .ms-stats, .ms.swap .ms-objs { animation: msIn 0.6s var(--ease) both; }
+.ms.swap .ms-brief { animation-delay: 0.05s; }
+.ms.swap .ms-stats { animation-delay: 0.1s; }
+.ms.swap .ms-objs { animation-delay: 0.15s; }
+.ms.swap .ms-planet { animation: msPlanetIn 0.9s var(--ease) both, msSpin 48s linear infinite; }
+.ms.swap .ms-stand { animation: msIn 0.6s var(--ease) both 0.2s; }
+@keyframes msIn { from { opacity: 0; transform: translateX(-18px); } }
+@keyframes msUp { from { opacity: 0; transform: translateY(24px); } }
+@keyframes msPlanetIn { from { opacity: 0; transform: scale(0.6) rotate(-30deg); } }
+
+/* ------------------------------------------------------------ narrow screens */
+@media (max-width: 1100px) {
+  .ms { grid-template-columns: minmax(0, 560px) minmax(0, 1fr); }
+  .ms-objs { grid-template-columns: 1fr; }
+  .ms-obj { display: grid; grid-template-columns: 34px 1fr; column-gap: 12px; align-items: center; }
+  .ms-oi { grid-row: span 2; margin: 0; }
+}
+@media (max-width: 900px) {
+  .ms { grid-template-columns: minmax(0, 1fr); background: linear-gradient(180deg, rgba(4, 7, 11, 0.55) 0%, rgba(4, 7, 11, 0.92) 30%, rgba(4, 7, 11, 0.96) 100%); padding-bottom: 20px; }
+  .ms-stand { display: none; }
+  .ms-map { grid-row: 2; overflow-x: auto; padding: 14px 0 8px; scrollbar-width: none; }
+  .ms-dossier { grid-row: 3; padding-top: 6px; }
+  .ms-earth { display: none; }
+  .ms-map > .ms-leg:first-of-type { display: none; }
+  .ms-node { padding: 6px 12px 6px 6px; }
+  .ms-planet { width: 92px; height: 92px; }
+  @keyframes msSpin { from { background-position-x: 0; } to { background-position-x: -184px; } }
+  .ms-head { gap: 18px; }
+  .ms-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ms-row, .ms-cta { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) {
+  .ms h2 { font-size: 40px; }
+  .ms-head { flex-direction: column; align-items: flex-start; }
+  .ms-crew { grid-template-columns: 1fr; }
+}
+
+/* fit one screen: compact spacing, no backdrop blur on the 3D view */
+body[data-screen='select'] #overlay.show { backdrop-filter: none; -webkit-backdrop-filter: none; }
+.ms { height: 100vh; min-height: 620px; }
+.ms-dossier { gap: 11px; padding: 6px 0 10px; }
+.ms h2 { font-size: clamp(36px, 4.1vw, 66px); }
+.ms-planet { width: 112px; height: 112px; }
+@keyframes msSpin { from { background-position-x: 0; } to { background-position-x: -224px; } }
+.ms-brief { display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ms-stats b { white-space: normal; font-size: 13.5px; line-height: 1.25; }
+.ms-obj { padding: 10px 12px 11px; }
+.ms-obj > span:last-child { display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ms-oi { width: 30px; height: 30px; }
+.ms-go, .ms-nasa { padding: 12px 16px; }
+.ms-map { padding: 6px 0 16px; }
+@media (max-height: 820px) {
+  .ms-tag { font-size: 15px; }
+  .ms-brief { display: none; }
+  .ms-go small, .ms-nasa small { display: none; }
+  .ms-note { font-size: 11.5px; }
+}
+@media (max-height: 700px) {
+  .ms-obj > span:last-child { display: none; }
+  .ms-stats { display: none; }
+}
+@media (max-width: 900px) {
+  .ms { height: auto; min-height: 100vh; }
+  @keyframes msSpin { from { background-position-x: 0; } to { background-position-x: -184px; } }
+}
+.ms-crew { grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); gap: 5px; }
+.ms-crew label { padding: 5px 8px; }
+.ms-crew input { font-size: 12.5px; }
+@media (max-height: 820px) { .ms-crew small { display: none; } }
