@@ -17,14 +17,20 @@ export function encodeDesign(d: Design): string {
       tof: transfer.tofDays,
       t1: transfer.flyby ? transfer.flyby.jd - transfer.launchJD : undefined,
     };
-  const json = JSON.stringify(p);
-  return btoa(unescape(encodeURIComponent(json))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const bytes = new TextEncoder().encode(JSON.stringify(p));
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 export function decodeDesign(code: string): Design | null {
   try {
-    const b64 = code.replace(/-/g, '+').replace(/_/g, '/');
-    const p = JSON.parse(decodeURIComponent(escape(atob(b64)))) as Packed;
+    let json: string;
+    if (/^[0-9a-f]+$/.test(code) && code.length % 2 === 0) {
+      const bytes = new Uint8Array(code.match(/../g)!.map((h) => parseInt(h, 16)));
+      json = new TextDecoder().decode(bytes);
+    } else {
+      json = decodeURIComponent(escape(atob(code.replace(/-/g, '+').replace(/_/g, '/'))));
+    }
+    const p = JSON.parse(json) as Packed;
     const m = missionById(p.missionId);
     let transfer = null;
     if (p.t) {

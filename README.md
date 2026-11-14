@@ -11,7 +11,11 @@ npm install
 npm run dev        # http://localhost:5173
 npm test           # physics validation + balance tests
 npm run build      # static site in dist/ (deploy anywhere: Vercel, Netlify, GitHub Pages)
+npm run build:single  # one self-contained file: single/index.html
 ```
+
+**Live version:** https://claude.ai/artifact/S6cNjbgRuS74XyF7oGuxqG (private until shared from its Share menu).
+For judges, a fully public host is safest: on a laptop where you're logged in, run `npx vercel deploy dist --prod`, or drag `dist/` onto app.netlify.com/drop.
 
 ## The three missions
 

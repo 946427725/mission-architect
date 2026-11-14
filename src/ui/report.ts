@@ -83,7 +83,6 @@ export function renderReport(app: App): string {
       <button class="btn" data-act="redesign">Improve the design</button>
       <button class="btn ghost" data-act="fly-again">Fly again (new luck)</button>
       <button class="btn ghost" data-act="share">Share design</button>
-      <button class="btn ghost" data-act="print">Print report</button>
       <button class="btn ghost" data-act="next-mission">Next: ${esc(nextMission.name)} →</button>
     </div>
   </div>`;

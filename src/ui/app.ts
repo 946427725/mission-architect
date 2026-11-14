@@ -65,7 +65,7 @@ export class App {
     };
     idle();
     // shared design link?
-    const m = location.hash.match(/#d=([\w-]+)/);
+    const m = location.hash.match(/#d[-=]([\w-]+)/);
     const shared = m ? decodeDesign(m[1]) : null;
     if (shared) {
       this.startDesign(shared, false);
@@ -819,7 +819,7 @@ export class App {
     const d = this.design;
     switch (act) {
       case 'home':
-        if (confirm('Leave this mission and go back to the title screen?')) {
+        {
           this.flight?.stop();
           this.go('title');
           this.view.setHighlight(['earth']);
@@ -889,10 +889,10 @@ export class App {
         break;
       case 'share': {
         if (!d) return;
-        const url = `${location.origin}${location.pathname}#d=${encodeDesign(d)}`;
+        const url = `${location.origin}${location.pathname}${location.search}#d-${encodeDesign(d)}`;
         navigator.clipboard?.writeText(url).then(
           () => toast('Share link copied - send it to your team or a rival team!', 'good'),
-          () => prompt('Copy this link:', url),
+          () => toast('Could not copy automatically. Copy the page address after this: #d-...', 'warn'),
         );
         break;
       }
