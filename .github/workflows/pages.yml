@@ -1,10 +1,9 @@
-# Builds the game and publishes it to GitHub Pages on every push to main.
+# Optional backup host: publishes the game to GitHub Pages when started by hand
+# (Actions tab > Deploy to GitHub Pages > Run workflow).
 # One-time setup on GitHub: Settings > Pages > Source: "GitHub Actions".
 name: Deploy to GitHub Pages
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:

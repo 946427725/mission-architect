@@ -23,11 +23,10 @@ npm run build         # static site in dist/
 npm run build:single  # one self-contained file: single/index.html
 ```
 
-### Public deployment (GitHub Pages)
-`.github/workflows/pages.yml` tests, builds and publishes the game on every push to `main`.
-1. Create a **public** GitHub repository and push this folder to it.
-2. On GitHub: **Settings → Pages → Source: GitHub Actions**.
-3. The game appears at `https://<your-user>.github.io/<repo>/` a minute later.
+### Public deployment
+- **Vercel (main host):** import the GitHub repository in Vercel. `vercel.json` already sets the build (`npm run build`, output `dist`).
+- **GitHub Pages (backup):** Settings → Pages → Source: GitHub Actions, then Actions → "Deploy to GitHub Pages" → Run workflow.
+- Every push runs the tests and a production build (`.github/workflows/ci.yml`).
 
 URL options: `?mission=mars|jupiter|pluto`, `&difficulty=easy|normal|hard|sandbox`, `&preset=nasa`, `&seed=N` (repeatable random events), `&speed=1|2|4`. Share links (`#d-…`) encode a whole design.
 
