@@ -51,6 +51,7 @@ export interface PorkchopGrid {
   spec: GridSpec;
   c3: Float32Array; // NaN = no solution
   extra: Float32Array; // JGA: flyby leg-1 time of flight (days); direct: arrival v_inf
+  flybyDv: Float32Array; // JGA: powered-flyby burn (km/s); direct: 0
   best: { ix: number; iy: number; c3: number } | null;
 }
 
@@ -131,6 +132,7 @@ export async function computeGrid(spec: GridSpec, onProgress?: (f: number) => vo
   const { nx, ny } = spec;
   const c3 = new Float32Array(nx * ny).fill(NaN);
   const extra = new Float32Array(nx * ny).fill(NaN);
+  const flybyDv = new Float32Array(nx * ny).fill(0);
   let best: PorkchopGrid['best'] = null;
 
   for (let ix = 0; ix < nx; ix++) {
@@ -164,6 +166,7 @@ export async function computeGrid(spec: GridSpec, onProgress?: (f: number) => vo
             bestCost[iy] = cost;
             c3[iy * nx + ix] = tr.c3;
             extra[iy * nx + ix] = tof1; // leg-2 time is rebuilt from the bin
+            flybyDv[iy * nx + ix] = tr.flyby.dv;
             if (!best || tr.c3 < best.c3) best = { ix, iy, c3: tr.c3 };
           }
         }
@@ -175,7 +178,7 @@ export async function computeGrid(spec: GridSpec, onProgress?: (f: number) => vo
     }
   }
   onProgress?.(1);
-  return { spec, c3, extra, best };
+  return { spec, c3, extra, flybyDv, best };
 }
 
 /** Rebuild the full transfer for a grid cell (detail view / selection). */

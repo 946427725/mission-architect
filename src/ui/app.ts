@@ -242,7 +242,10 @@ export class App {
           if (Math.sqrt(vinf * vinf + (2 * body.mu) / (body.radius + 125)) > 7.3) continue;
         }
         // cheaper is better, but waiting years for a slightly cheaper window is not
-        const score = c3 + tof / 3650 + ((L - this.ev!.readyJD) / 365.25) * 1.5;
+        // Score in "C3-equivalent" units: a flyby burn costs spacecraft propellant (~40 per km/s),
+        // a long trip costs RTG power, operations money and risk (~3 per year), and
+        // waiting years for a slightly cheaper window is not worth it (~1.5 per year).
+        const score = c3 + 40 * grid.flybyDv[iy * s.nx + ix] + (tof / 365.25) * 3 + ((L - this.ev!.readyJD) / 365.25) * 1.5;
         if (!best || score < best.score) best = { ix, iy, score };
       }
     }

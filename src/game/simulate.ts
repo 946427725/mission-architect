@@ -173,6 +173,22 @@ export function simulate(d: Design, ev: Evaluation, seed: number, teamMode: bool
       }
     }
   }
+  if (!lost && m.type === 'orbiter' && roll(0.35)) {
+    const jd = A + m.primaryDays * (0.15 + 0.5 * rand());
+    if (redundant) push({ jd, phase: 'science', title: 'Safe mode at closest approach', tone: 'good', text: 'A radiation spike near Jupiter reset the computer during a close pass - Juno had several of these. The backup computer kept the science sequence running.', saved: 'Dual-string avionics' });
+    else {
+      sciMult *= 0.9;
+      push({ jd, phase: 'science', title: 'Safe mode at closest approach', tone: 'bad', text: 'A radiation spike reset the only computer during a close pass. Science from that orbit was lost (-10% science).' });
+    }
+  }
+  if (!lost && m.type === 'flyby' && roll(0.25)) {
+    const jd = L + tr.tofDays * (0.55 + 0.3 * rand());
+    if (ev.power.margin >= 0.1) push({ jd, phase: 'cruise', title: 'Wake-up from hibernation', tone: 'good', text: 'After years asleep, the team woke the spacecraft to test every instrument. Your power margin let them run all instruments at once.', saved: 'Power margin ≥ 10%' });
+    else {
+      sciMult *= 0.92;
+      push({ jd, phase: 'cruise', title: 'Wake-up from hibernation', tone: 'bad', text: 'Instrument checkout found the decayed RTG cannot power everything at once. Observations must be taken in turns, so some flyby time is lost (-8% science).' });
+    }
+  }
   if (!lost && m.type === 'orbiter' && ev.radiation && ev.radiation.maxOrbits < ev.radiation.plannedOrbits) {
     const frac = ev.radiation.maxOrbits / ev.radiation.plannedOrbits;
     push({ jd: A + m.primaryDays * frac, phase: 'science', title: 'Radiation damage', tone: 'critical', text: `After ${ev.radiation.maxOrbits.toFixed(1)} orbits the electronics absorbed ${(ev.radiation.dosePerOrbit * ev.radiation.maxOrbits).toFixed(0)} krad and failed. More shielding would have kept it alive.` });

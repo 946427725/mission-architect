@@ -32,6 +32,9 @@ export function renderReport(app: App): string {
   for (const e of losses) why.push(`<li class="bad"><b>${esc(e.title)}</b> - ${esc(e.text)}</li>`);
   for (const e of saves) why.push(`<li class="good"><b>${esc(e.title)}</b> - saved by your choice: <i>${esc(e.saved!)}</i>.</li>`);
   for (const c of limits) why.push(`<li class="warn"><b>${esc(c.label)}</b> - ${c.detail}</li>`);
+  const goodIds = ['rad', 'power', 'entry', 'data', 'dv', 'rover'];
+  const goods = ev.checks.filter((c) => c.status === 'ok' && goodIds.includes(c.id)).sort((x, y) => goodIds.indexOf(x.id) - goodIds.indexOf(y.id)).slice(0, 3);
+  for (const c of goods) why.push(`<li class="good"><b>Good call: ${esc(c.label)}</b> - ${c.detail}</li>`);
   if (!why.length) why.push('<li class="good">A clean mission: no failures and healthy margins everywhere. Textbook systems engineering.</li>');
 
   const myRows: [string, string][] = [
