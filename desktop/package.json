@@ -1,0 +1,43 @@
+{
+  "name": "mission-architect-desktop",
+  "productName": "Mission Architect",
+  "version": "1.0.1",
+  "description": "Mission Architect: build a real spacecraft by hand. NASA Space Apps Challenge 2026 desktop build.",
+  "main": "main.js",
+  "author": "Mission Architect Team",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win portable --x64"
+  },
+  "build": {
+    "appId": "org.missionarchitect.game",
+    "productName": "Mission Architect",
+    "files": [
+      "main.js",
+      "app/**/*"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "icon.ico"
+    },
+    "portable": {
+      "artifactName": "MissionArchitect-${version}-Windows-portable.exe"
+    }
+  },
+  "devDependencies": {
+    "electron": "^45.3.2",
+    "electron-builder": "^26.18.0"
+  }
+}

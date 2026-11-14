@@ -187,6 +187,14 @@ export class Hangar {
     this.hud.onUseHold = (down) => this.holdUse(down);
     new ResizeObserver(() => this.resize()).observe(host);
     this.resize();
+    const desktop = /Electron/i.test(navigator.userAgent);
+    this.minTier = 0;
+    // integrated laptop GPUs (Intel UHD/Iris) start one step lower in a browser
+    const gl = this.renderer.getContext();
+    const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+    const gpu = dbg ? String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)) : '';
+    const integrated = /Intel|UHD|Iris|Mali|Adreno|PowerVR|SwiftShader|llvmpipe/i.test(gpu);
+    this.applyTier(desktop ? 0 : this.quality === 'low' || integrated ? 2 : 1);
     this.renderer.setAnimationLoop(() => this.frame());
     document.addEventListener('visibilitychange', () => (this.lastTime = performance.now()));
   }
@@ -522,6 +530,7 @@ export class Hangar {
     w.eng.carrying = true;
     w.eng.heavy = key.startsWith('powerId:gphs2');
     this.carrying.push(key);
+    this.autoInstallAt = performance.now() + (field === 'instr' ? 1600 : 450);
     const obj = f.s.obj;
     this.scene.attach(obj);
     const p0 = obj.position.clone();
@@ -1015,7 +1024,7 @@ export class Hangar {
     if (this.openId) this.renderPanel();
     this.react(ev);
     this.lastEv = ev;
-    drawScreens(this.stations, this.bay.statusBoard, d, ev, this.ctx());
+    this.screensDirty = true;
   }
 
   /** Flight Director commentary when checks change state. */
@@ -1089,6 +1098,7 @@ export class Hangar {
       if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'shift', 'q'].includes(k)) {
         this.keys.add(k);
         if (k !== 'shift' && k !== 'q') {
+          this.autoInstallAt = 0;
           this.goal = null;
           if (this.openId && !k.startsWith('arrow')) this.closePanel();
           if (!this.movedOnce) {
@@ -1099,7 +1109,8 @@ export class Hangar {
         if (k.startsWith('arrow')) e.preventDefault();
       }
       if (k === 'e' || k === 'enter' || k === ' ') {
-        if ((e.target as HTMLElement)?.closest?.('button')) return;
+        if (k !== 'e' && (e.target as HTMLElement)?.closest?.('button')) return;
+        (document.activeElement as HTMLElement | null)?.blur?.();
         e.preventDefault();
         if (!e.repeat) this.use();
         if (this.openId === 'fuel') this.holdUse(true);
@@ -1109,6 +1120,10 @@ export class Hangar {
         this.switchTo((this.active + 1) % this.walkers.length);
       }
       if (k === 'escape') this.closePanel();
+    });
+    document.addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest?.('#gamehud button') as HTMLElement | null;
+      if (b) setTimeout(() => b.blur(), 0);
     });
     window.addEventListener('keyup', (e) => {
       const k = e.key.toLowerCase();
@@ -1186,10 +1201,10 @@ export class Hangar {
     });
   }
 
-  private pick3D(x: number, y: number): THREE.Intersection | null {
+  private pick3D(x: number, y: number, hoverOnly = false): THREE.Intersection | null {
     const r = this.renderer.domElement.getBoundingClientRect();
     this.ray.setFromCamera(new THREE.Vector2(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1), this.camera);
-    const objs: THREE.Object3D[] = [this.stationGroup, this.craftHolder, this.bay.group];
+    const objs: THREE.Object3D[] = hoverOnly ? [...this.stations.flatMap((st) => st.slots.map((s) => s.obj)), this.craftHolder] : [this.stationGroup, this.craftHolder, this.bay.group];
     const hits = this.ray.intersectObjects(objs, true);
     for (const h of hits) {
       let o: THREE.Object3D | null = h.object;
@@ -1231,6 +1246,72 @@ export class Hangar {
     (this.goalMarker.material as THREE.MeshBasicMaterial).opacity = 0.9;
   }
   private pendingPick: string | null = null;
+  private autoInstallAt = 0;
+  private screensDirty = true;
+
+  // ------------------------------------------------------------ adaptive quality
+  /** 0 = best. The governor steps down when frames are slow and back up when there is headroom. */
+  tier = 0;
+  private minTier = 0;
+  private perf = { ema: 16, slow: 0, fast: 0, warm: 0 };
+
+  private governor(raw: number) {
+    if (document.hidden || raw > 0.25 || this.mode === 'off') {
+      this.perf.warm = 0;
+      return;
+    }
+    const p = this.perf;
+    p.ema = p.ema * 0.93 + raw * 1000 * 0.07;
+    p.warm += raw;
+    if (p.warm < 2.5) return;
+    if (p.ema > 22) {
+      p.slow += raw;
+      p.fast = 0;
+      if (p.slow > 1.2 && this.tier < 4) {
+        this.applyTier(this.tier + 1);
+        p.slow = 0;
+        p.warm = 1;
+        p.ema = 16;
+      }
+    } else if (p.ema < 11) {
+      p.fast += raw;
+      p.slow = 0;
+      if (p.fast > 10 && this.tier > this.minTier) {
+        this.applyTier(this.tier - 1);
+        p.fast = 0;
+        p.warm = 1;
+      }
+    } else {
+      p.slow = 0;
+      p.fast = 0;
+    }
+  }
+
+  applyTier(t: number) {
+    this.tier = t;
+    const dpr = window.devicePixelRatio || 1;
+    const pr = [Math.min(dpr, 2), Math.min(dpr, 1.5), Math.min(dpr, 1), Math.min(dpr, 0.85), 0.7][t];
+    this.renderer.setPixelRatio(pr);
+    this.composer.setPixelRatio(pr);
+    const samples = [4, 4, 2, 0, 0][t];
+    for (const rt of [this.composer.renderTarget1, this.composer.renderTarget2])
+      if (rt.samples !== samples) {
+        rt.samples = samples;
+        rt.dispose();
+      }
+    this.bloom.enabled = t < 3;
+    const sm = [2048, 2048, 1024, 1024, 512][t];
+    const sun = this.bay.sun;
+    if (sun.shadow.mapSize.x !== sm) {
+      sun.shadow.mapSize.set(sm, sm);
+      sun.shadow.map?.dispose();
+      (sun.shadow as unknown as { map: THREE.WebGLRenderTarget | null }).map = null;
+    }
+    this.shadowFrames = 3;
+    document.body.classList.toggle('lowfx', t >= 2);
+    this.resize();
+  }
+
 
   private craftTip(o: THREE.Object3D): string | null {
     let p: THREE.Object3D | null = o;
@@ -1259,7 +1340,7 @@ export class Hangar {
 
   private updateHover() {
     if (this.pointer.down || this.mode !== 'play' || matchMedia('(pointer: coarse)').matches) return;
-    const h = this.pick3D(this.pointer.x, this.pointer.y);
+    const h = this.pick3D(this.pointer.x, this.pointer.y, true);
     const key = h?.object.userData.slotKey as string | undefined;
     if (key) {
       const f = this.slot(key);
@@ -1335,9 +1416,11 @@ export class Hangar {
 
   private frame() {
     const now = performance.now();
-    const dt = Math.min(0.05, (now - this.lastTime) / 1000);
+    const raw = (now - this.lastTime) / 1000;
+    const dt = Math.min(0.05, raw);
     this.lastTime = now;
     if (!this.visible) return;
+    this.governor(raw);
     if (this.pad?.active) {
       this.pad.update(dt);
       return;
@@ -1376,12 +1459,14 @@ export class Hangar {
     im.opacity = this.carrying.length ? 0.6 + Math.sin(now * 0.008) * 0.35 : 0.18;
     this.bay.installMarker.scale.setScalar(this.carrying.length ? 1 + Math.sin(now * 0.008) * 0.06 : 1);
     this.screenTimer += dt;
-    if (this.screenTimer > 1 && this.design && this.app.ev) {
+    if (this.design && this.app.ev && (this.screenTimer > 1 || (this.screensDirty && this.screenTimer > 0.25))) {
+      drawScreens(this.stations, this.bay.statusBoard, this.design, this.app.ev, this.ctx(), !this.screensDirty);
+      this.screensDirty = false;
       this.screenTimer = 0;
-      drawScreens(this.stations, this.bay.statusBoard, this.design, this.app.ev, this.ctx(), true);
     }
-    const me = this.walkers[this.active];
-    if (this.shadowFrames > 0 || this.tweens.length || this.craneBusy || (me && me.vel.lengthSq() > 0.0004) || this.walkers.some((w) => w.eng.busy())) {
+    // the shadow map is a cache: re-render only while parts or the crane move (every other frame)
+    this.shadowTick = (this.shadowTick + 1) % 2;
+    if (this.shadowFrames > 0 || ((this.tweens.length || this.craneBusy) && this.shadowTick === 0)) {
       this.renderer.shadowMap.needsUpdate = true;
       this.shadowFrames = Math.max(0, this.shadowFrames - 1);
     }
@@ -1389,6 +1474,7 @@ export class Hangar {
   }
   /** Force shadow re-renders for the next few frames (after scene changes). */
   shadowFrames = 3;
+  private shadowTick = 0;
   private viewShift = 0;
 
   /** Pixels to push the attract-mode spacecraft to the right (to make room for UI on the left). */
@@ -1461,7 +1547,7 @@ export class Hangar {
           } else if (inst && this.carrying.length) this.installCarried();
         }
       } else {
-        const sp = Math.min(3.2, d > 3 ? 3.2 : 1.7 + d * 0.3);
+        const sp = Math.min(4.4, d > 4 ? 4.4 : 1.7 + d * 0.5);
         want = to.normalize().multiplyScalar(last ? Math.min(sp, d * 3) : sp);
       }
     }
@@ -1490,6 +1576,16 @@ export class Hangar {
       const v = w === me ? speed : 0;
       if (w !== me) w.eng.lookAt = me.eng.root.position.clone().setY(1.6);
       w.eng.update(dt, v);
+    }
+
+    // ---- carry picked parts to the spacecraft automatically (unless the player walks themselves)
+    if (this.autoInstallAt && performance.now() > this.autoInstallAt && this.carrying.length && !this.goal && !(ix || iz)) {
+      this.autoInstallAt = 0;
+      this.goTo('install');
+      if (!this.saidIntro.has('autocarry')) {
+        this.saidIntro.add('autocarry');
+        this.hud.say('Carrying it to the spacecraft. The part locks in when you reach the blue ring.', 'FLIGHT', 5000);
+      }
     }
 
     // ---- what are we near?

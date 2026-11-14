@@ -118,6 +118,7 @@ export class LaunchPad {
   private v = 0;
   private sunDir = new THREE.Vector3();
   private tower = new THREE.Group();
+  private frameN = 0;
 
   constructor(private renderer: THREE.WebGLRenderer) {
     const sc = this.scene;
@@ -143,7 +144,7 @@ export class LaunchPad {
     const sun = new THREE.DirectionalLight(0xffd6a8, 3.2);
     sun.position.copy(this.sunDir).multiplyScalar(400);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(4096, 4096);
+    sun.shadow.mapSize.set(2048, 2048);
     const scam = sun.shadow.camera;
     scam.left = -90;
     scam.right = 90;
@@ -474,6 +475,7 @@ export class LaunchPad {
     cam.position.x += (rnd() - 0.5) * shake;
     cam.position.y += (rnd() - 0.5) * shake;
     cam.updateProjectionMatrix();
+    if ((this.frameN++ & 1) === 0) this.renderer.shadowMap.needsUpdate = true;
     this.composer.render(dt);
     if (t > T0 + 10.5) this.finish();
   }

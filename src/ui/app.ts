@@ -1116,7 +1116,7 @@ export class App {
     else o.innerHTML = '';
     const changed = this.overlayScreen !== this.screen;
     this.overlayScreen = this.screen;
-    o.className = (this.screen === 'design' || this.screen === 'flight' ? '' : 'show') + (changed ? ' enter' : '');
+    o.className = (this.screen === 'design' || this.screen === 'flight' || this.screen === 'hangar' ? '' : 'show') + (changed ? ' enter' : '');
     if (changed && this.screen === 'report' && this.sim) {
       const total = this.sim.score.total;
       setTimeout(() => {

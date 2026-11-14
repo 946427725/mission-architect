@@ -3,6 +3,22 @@
 import * as THREE from 'three';
 import { M, at, cyl, rbox, sph } from './kit';
 
+let _blob: THREE.Texture | null = null;
+function blobTexture(): THREE.Texture {
+  if (_blob) return _blob;
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const x = c.getContext('2d')!;
+  const g = x.createRadialGradient(64, 64, 4, 64, 64, 62);
+  g.addColorStop(0, 'rgba(20,24,30,0.85)');
+  g.addColorStop(0.45, 'rgba(20,24,30,0.45)');
+  g.addColorStop(1, 'rgba(20,24,30,0)');
+  x.fillStyle = g;
+  x.fillRect(0, 0, 128, 128);
+  _blob = new THREE.CanvasTexture(c);
+  return _blob;
+}
+
 const capsule = (r: number, len: number, m: THREE.Material) => new THREE.Mesh(new THREE.CapsuleGeometry(r, len, 8, 20), m);
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
@@ -231,12 +247,19 @@ export class Engineer {
 
     this.carryAnchor.position.set(0, 1.1, 0.42);
     this.root.add(this.carryAnchor);
+    // The engineer does not cast into the (cached) shadow map; a soft contact
+    // shadow follows them instead, so walking never forces a shadow re-render.
     this.root.traverse((o) => {
       if ((o as THREE.Mesh).isMesh) {
-        o.castShadow = true;
+        o.castShadow = false;
         o.receiveShadow = true;
       }
     });
+    const blob = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.1), new THREE.MeshBasicMaterial({ map: blobTexture(), transparent: true, depthWrite: false, opacity: 0.55, toneMapped: false }));
+    blob.rotation.x = -Math.PI / 2;
+    blob.position.y = 0.012;
+    blob.renderOrder = 1;
+    this.root.add(blob);
   }
 
   setIdentity(color: string, name: string, role: string) {

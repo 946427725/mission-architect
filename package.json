@@ -9,7 +9,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "build:single": "npm run build && node scripts/build-single.mjs"
+    "build:single": "npm run build && node scripts/build-single.mjs",
+    "build:exe": "npm run build:single && node scripts/build-exe.mjs"
   },
   "dependencies": {
     "three": "^0.187.0"

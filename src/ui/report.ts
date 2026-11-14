@@ -99,45 +99,70 @@ export function renderReport(app: App): string {
         .join('')}</ol><p class="note">Same launch, same luck: we re-flew your mission once for each possible single change.</p>`
     : `<p class="note">We re-flew your mission once for every possible single change. None scored higher: this design is already at its best for this launch and this luck.</p>`;
 
-  return `<div class="report" id="report">
-    <div class="report-head ${sim.outcome}">
-      <div class="eyebrow">Post-mission report · ${esc(m.name)} · ${BODIES[m.target].name} · ${esc((m.objectives.find((o) => o.id === d.objectiveId) ?? m.objectives[0]).name)}</div>
-      <h1>${outcomeText}</h1>
-      <p class="headline">${esc(head.text)}</p>
-      ${head.tab ? `<button class="btn fix-step" data-act="fix-step" data-tab="${head.tab}">Fix it at the ${STEP_LABEL[head.tab]} →</button>` : ''}
-      <div class="grade-row"><div class="stars">${stars}</div><div class="score"><b>${fmtInt(sim.score.total)}</b><span>points</span></div>
-        <div class="sci-goal"><div class="sci-bar"><i style="width:${Math.min(100, (sim.scienceFraction / 1.5) * 100)}%"></i><span class="goal" style="left:${100 / 1.5}%"></span></div>
-        <div class="sci-nums"><b>${Math.round(sim.science)}</b> / ${m.scienceTarget} science points</div></div></div>
-      <div class="grade" aria-hidden="true">${stamp}</div>
-    </div>
+  const ACC: Record<string, string> = { mars: '#ff7b47', jupiter: '#f2b56b', pluto: '#9cc3ff' };
+  const OUT: Record<string, string> = { success: '#4fe08c', partial: '#ffc23d', failure: '#ff5c5c' };
+  const frac = Math.min(1.5, sim.scienceFraction) / 1.5;
+  const R = 52;
+  const C = 2 * Math.PI * R;
+  const icon = (t: string) => (t === 'good' ? '✓' : t === 'warn' ? '!' : '✕');
+  const whyItems = why.length ? why.join('') : '<li class="good"><b>No surprises at all</b> - textbook systems engineering.</li>';
+  const maxItem = Math.max(1, ...sim.score.items.map(([, v]) => Math.abs(v)));
+  const objName = (m.objectives.find((o) => o.id === d.objectiveId) ?? m.objectives[0]).name;
+  return `<div class="report rp ${sim.outcome}" id="report" style="--mc:${ACC[m.id] ?? '#4cc9ff'};--oc:${OUT[sim.outcome]}">
+    <header class="rp-top">
+      <div class="rp-crumb"><span>Post-mission report</span><b>${esc(m.name)}</b><em>${BODIES[m.target].name} · ${esc(objName)} · ${esc(d.difficulty)}</em></div>
+      <button class="rp-x" data-act="redesign" aria-label="Back to the high bay">Back to the high bay</button>
+    </header>
 
-    <div class="report-grid">
-      <section><h3>Why it turned out this way</h3><ul class="why">${why.join('') || '<li class="good">No surprises at all. Textbook systems engineering.</li>'}</ul></section>
-      <section><h3>${sim.outcome === 'success' ? 'Could you score even higher?' : 'One change that would have helped most'}</h3>${whatIfHTML}</section>
+    <section class="rp-hero">
+      <div class="rp-verdict">
+        <div class="rp-badge"><i></i>${outcomeText}</div>
+        <h1>${sim.outcome === 'success' ? 'Mission accomplished' : sim.outcome === 'partial' ? 'Partly there' : 'Signal lost'}</h1>
+        <p class="headline">${esc(head.text)}</p>
+        ${head.tab ? `<button class="rp-fix" data-act="fix-step" data-tab="${head.tab}"><span>Fix it at the ${STEP_LABEL[head.tab]}</span><i>→</i></button>` : ''}
+        <div class="grade" aria-hidden="true">${stamp}</div>
+      </div>
+      <div class="rp-score">
+        <div class="stars">${stars}</div>
+        <div class="rp-ring">
+          <svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="${R}" class="bg"/><circle cx="60" cy="60" r="${R}" class="fg" style="stroke-dasharray:${C};stroke-dashoffset:${C * (1 - frac)}"/><circle cx="60" cy="60" r="${R}" class="goal" style="stroke-dasharray:2 ${C};stroke-dashoffset:${-C / 1.5}"/></svg>
+          <div class="rp-ring-t"><b>${Math.round(sim.science)}</b><span>of ${m.scienceTarget} science</span></div>
+        </div>
+        <div class="score"><b>${fmtInt(sim.score.total)}</b><span>points</span></div>
+        <div class="rp-grade"><span>Grade</span><b>${esc(sim.score.grade)}</b></div>
+      </div>
+    </section>
 
-      <section><h3>Mission log</h3><ol class="log">${sim.events.map((e) => `<li class="${e.tone}"><span>${formatJD(e.jd)}</span><b>${esc(e.title)}</b></li>`).join('')}</ol></section>
-      <section><h3>Score breakdown</h3><div class="budget">${sim.score.items.map(([k, v]) => `<div><span>${esc(k)}</span><b>${v >= 0 ? '+' : ''}${fmtInt(v)}</b></div>`).join('')}<div class="total"><span>Total</span><b>${fmtInt(sim.score.total)}</b></div></div>
-        ${app.team.enabled ? `<h3>Team role goals</h3>${sim.roleGoals.map((g) => `<div class="check ${g.met ? 'ok' : 'warn'}">${statusIcon(g.met ? 'ok' : 'warn')}<div><b style="color:${ROLE_INFO[g.role].color}">${ROLE_INFO[g.role].title}</b><p>${esc(g.goal)}</p></div></div>`).join('')}` : ''}
-      </section>
+    <div class="rp-grid">
+      <section class="rp-card rp-why"><h3>Why it turned out this way</h3><ul class="why">${whyItems.replace(/<li class="(good|warn|bad)">/g, (_x, t) => `<li class="${t}"><i class="rp-ic">${icon(t)}</i><div>`).replace(/<\/li>/g, '</div></li>')}</ul></section>
+      <section class="rp-card rp-whatif"><h3>${sim.outcome === 'success' ? 'Could you score even higher?' : 'One change that would have helped most'}</h3>${whatIfHTML}</section>
 
-      <section class="compare"><h3>You vs NASA: ${esc(m.nasa.name)}</h3>
-        <div class="cmp-cols"><div><h4>Your mission</h4>${myRows.map(([k, v]) => `<div class="kvrow"><span>${k}</span><b>${esc(v)}</b></div>`).join('')}</div>
-        <div><h4>${esc(m.nasa.name)}</h4>${m.nasa.facts.map(([k, v]) => `<div class="kvrow"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('')}</div></div>
+      <section class="rp-card rp-compare"><h3>You vs NASA</h3>
+        <div class="rp-cmp">
+          <div class="rp-col you"><h4><i></i>Your mission</h4>${myRows.map(([k, v]) => `<div class="kvrow"><span>${k}</span><b>${esc(v)}</b></div>`).join('')}</div>
+          <div class="rp-col nasa"><h4><i></i>${esc(m.nasa.name)}</h4>${m.nasa.facts.map(([k, v]) => `<div class="kvrow"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('')}</div>
+        </div>
         <p class="lesson"><b>Lesson from the real mission:</b> ${esc(m.nasa.lesson)} <a href="${m.nasa.url}" target="_blank" rel="noopener">Learn more at NASA ↗</a> · <button class="link-btn inline" data-act="validation">How we validated the physics</button></p>
       </section>
 
-      <section><h3>Leaderboard: ${esc(m.name)}</h3>
-        ${lb.length ? `<div class="lb">${lb.map((e, i) => `<div><span>${i + 1}. ${esc(e.name)}</span><span>${esc(e.difficulty)}</span><b>${e.score}</b></div>`).join('')}</div>` : '<p class="small-note">No scores yet on this device. Be the first!</p>'}
+      <section class="rp-card rp-log"><h3>Mission log</h3><ol class="log">${sim.events.map((e) => `<li class="${e.tone}"><span>${formatJD(e.jd)}</span><b>${esc(e.title)}</b></li>`).join('')}</ol></section>
+
+      <section class="rp-card rp-points"><h3>Score breakdown</h3><div class="budget">${sim.score.items.map(([k, v]) => `<div class="${v < 0 ? 'neg' : ''}"><span>${esc(k)}</span><i style="--w:${(Math.abs(v) / maxItem) * 100}%"></i><b>${v >= 0 ? '+' : ''}${fmtInt(v)}</b></div>`).join('')}<div class="total"><span>Total</span><b>${fmtInt(sim.score.total)}</b></div></div>
+        ${app.team.enabled ? `<h3 class="sub">Team role goals</h3>${sim.roleGoals.map((g) => `<div class="check ${g.met ? 'ok' : 'warn'}">${statusIcon(g.met ? 'ok' : 'warn')}<div><b style="color:${ROLE_INFO[g.role].color}">${ROLE_INFO[g.role].title}</b><p>${esc(g.goal)}</p></div></div>`).join('')}` : ''}
+      </section>
+
+      <section class="rp-card rp-lb"><h3>Leaderboard · ${esc(m.name)}</h3>
+        ${lb.length ? `<div class="lb">${lb.map((e, i) => `<div><span><i>${i + 1}</i>${esc(e.name)}</span><span>${esc(e.difficulty)}</span><b>${e.score}</b></div>`).join('')}</div>` : '<p class="small-note">No scores yet on this device. Be the first!</p>'}
         ${d.difficulty === 'sandbox' ? '<p class="small-note">Sandbox scores are not saved.</p>' : `<div class="save-row"><input id="lb-name" maxlength="20" placeholder="${app.team.enabled ? 'Team name' : 'Your name'}" value="${esc(app.playersSummary())}"><button class="btn small" data-act="save-score">Save score</button></div>`}
       </section>
     </div>
 
-    <div class="report-actions">
-      <button class="btn" data-act="redesign">Improve the design</button>
-      <button class="btn ghost" data-act="fly-again">Fly again (new luck)</button>
-      <button class="btn ghost" data-act="nasa-design-report">Try the NASA-style design</button>
-      <button class="btn ghost" data-act="share">Share design</button>
-      <button class="btn ghost" data-act="next-mission">Next: ${esc(nextMission.name)} →</button>
+    <div class="report-actions rp-actions">
+      <button class="rp-primary" data-act="redesign"><span>Improve the design</span><small>back to the high bay</small></button>
+      <button class="rp-btn" data-act="fly-again">Fly again<small>new luck</small></button>
+      <button class="rp-btn" data-act="nasa-design-report">NASA's design<small>compare</small></button>
+      <button class="rp-btn" data-act="share">Share<small>copy link</small></button>
+      <button class="rp-btn next" data-act="next-mission">Next mission<small>${esc(nextMission.name)} →</small></button>
     </div>
   </div>`;
 }

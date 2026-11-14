@@ -377,3 +377,12 @@ body[data-route='route'] .brand-sub, body[data-route='pro'] .brand-sub { display
   .gr-av svg { width: 30px; height: 30px; }
   .gr-body p { font-size: 13px; min-height: 0; }
 }
+
+/* performance: backdrop blur over a live WebGL canvas is re-computed every frame.
+   Keep it only on the big panels, and drop it entirely on slower machines. */
+.gl, .gg, .gh-tasks, .gh-mission, .gh-menu, .gh-role, .gh-prompt { backdrop-filter: none; -webkit-backdrop-filter: none; }
+.gl { background: rgba(9, 13, 19, 0.82); }
+.gg, .gh-tasks, .gh-mission, .gh-menu, .gh-role { background: rgba(10, 14, 20, 0.84); }
+body.lowfx #gamehud *, body.lowfx .ms *, body.lowfx .rp * { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+body.lowfx .gh-panel, body.lowfx .gh-radio { background: rgba(12, 17, 24, 0.96); }
+body.lowfx .ms-obj, body.lowfx .ms-node, body.lowfx .ms-stats div { background: rgba(14, 19, 27, 0.9); }

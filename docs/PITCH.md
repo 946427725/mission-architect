@@ -20,6 +20,20 @@ Best Use of Science (main target), Most Inspirational, Art & Technology.
 3. **There is no single correct design.** Automated tests prove two different winning designs exist for every mission, and every science objective is reachable.
 4. **Real collaboration.** Four roles with conflicting personal goals; any change resets everyone's sign-off.
 
+## Two ways to play (put this on the project page and on a pitch slide)
+
+**1. Best experience: the Windows app.** Download `MissionArchitect-1.0.1-Windows-portable.exe` from the GitHub Releases page and double-click it (no installation). The app asks Windows for the laptop's dedicated graphics card, so the 3D high bay runs much more smoothly than in a browser. The app is not code-signed: if Windows shows *"Windows protected your PC"*, click **More info → Run anyway**.
+
+**2. Instant: the website.** Open the link in Chrome, Edge or Firefox. Nothing to install, and it works on Windows, macOS, Linux and tablets. The game lowers its own graphics quality automatically on slower or integrated graphics.
+
+**If the .exe does not open on your computer** (macOS, a locked-down PC, or an antivirus that blocks unsigned apps), please use the website version: it is the same game.
+
+Slide text (short):
+> **Play it**
+> Best: Windows app (.exe, no install) - smoother 3D on your graphics card.
+> Instant: [website link] - any browser, any computer.
+> If the .exe does not open, use the website. Same game.
+
 ## How we used NASA data
 - NASA/JPL "Approximate Positions of the Planets" Keplerian elements (planet positions 1800-2050): https://ssd.jpl.nasa.gov/planets/approx_pos.html
 - NASA Planetary Fact Sheets (gravity parameters, radii): https://nssdc.gsfc.nasa.gov/planetary/factsheet/

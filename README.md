@@ -16,6 +16,13 @@ A 3D browser game for the NASA Space Apps Challenge 2026 *Space Mission Design G
 
 Repeatable demo link (same events every time): `?mission=mars&preset=nasa&seed=1&speed=4`
 
+## Play it
+
+- **Windows app (best experience):** download `MissionArchitect-1.0.1-Windows-portable.exe` from Releases and run it (no install). It uses the dedicated GPU on dual-graphics laptops. Not code-signed: on *"Windows protected your PC"* click **More info → Run anyway**.
+- **Website (instant, any computer):** the Vercel link. Graphics quality adapts automatically to the machine.
+- If the .exe will not open on your computer, use the website: it is the same game.
+- Tip for laptops in the browser: Windows Settings → System → Display → Graphics → set your browser to *High performance* to use the dedicated GPU.
+
 ## Run it
 
 ```bash
@@ -24,6 +31,7 @@ npm run dev           # http://localhost:5173
 npm test              # physics validation, balance and analysis tests (16)
 npm run build         # static site in dist/
 npm run build:single  # one self-contained file: single/index.html
+npm run build:exe     # Windows portable app in desktop/dist-exe/ (run `npm install` in desktop/ first)
 ```
 
 ### Public deployment

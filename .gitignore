@@ -3,3 +3,7 @@ dist
 *.log
 .DS_Store
 single
+desktop/node_modules/
+desktop/release/
+desktop/app/index.html
+desktop/dist-exe/
