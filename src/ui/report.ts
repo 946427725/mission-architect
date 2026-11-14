@@ -53,7 +53,7 @@ export function renderReport(app: App): string {
     <div class="report-head ${sim.outcome}">
       <div class="eyebrow">Post-mission report · ${esc(m.name)} · ${BODIES[m.target].name}</div>
       <h1>${outcomeText}</h1>
-      <div class="grade-row"><div class="grade">${sim.score.grade}</div><div class="stars">${stars}</div><div class="score"><b>${fmtInt(sim.score.total)}</b><span>points</span></div></div>
+      <div class="grade-row"><div class="grade" data-word="${sim.outcome === 'success' ? 'APPROVED' : sim.outcome === 'partial' ? 'PARTIAL' : 'LOST'}">${sim.score.grade}</div><div class="stars">${stars}</div><div class="score"><b>${fmtInt(sim.score.total)}</b><span>points</span></div></div>
       <div class="sci-goal"><div class="sci-bar"><i style="width:${Math.min(100, (sim.scienceFraction / 1.5) * 100)}%"></i><span class="goal" style="left:${100 / 1.5}%"></span></div>
         <div class="sci-nums"><b>${Math.round(sim.science)}</b> science points returned / ${m.scienceTarget} goal</div></div>
     </div>
@@ -103,15 +103,14 @@ export function reportAction(app: App, act: string, _el: HTMLElement) {
       app.view.setDate(app.design!.transfer!.launchJD);
       app.view.frameSystem(missionOf(app.design!).target === 'pluto' ? 44 : missionOf(app.design!).target === 'jupiter' ? 6.8 : 2.3);
       app.screen = 'design';
+      app.panelAnim = true;
       app.render();
       break;
     case 'fly-again':
       saved = false;
       app.view.setCloseupModel(null);
-      app.screen = 'design';
       app.tab = 'launch';
-      app.render();
-      ($('[data-act=launch]') as HTMLButtonElement | null)?.click();
+      app.launch();
       break;
     case 'print':
       window.print();

@@ -18,7 +18,7 @@ const PAD = { l: 44, r: 10, t: 10, b: 30 };
 function colormap(t: number): [number, number, number] {
   // deep blue -> cyan -> green -> yellow -> orange -> red
   const stops: [number, number, number][] = [
-    [20, 40, 140], [30, 120, 230], [60, 210, 220], [120, 220, 120], [240, 220, 80], [250, 140, 50], [220, 50, 50],
+    [11, 52, 92], [24, 104, 128], [56, 150, 120], [150, 182, 70], [227, 162, 26], [211, 38, 58], [236, 178, 178],
   ];
   const x = Math.min(0.9999, Math.max(0, t)) * (stops.length - 1);
   const i = Math.floor(x);
@@ -85,7 +85,7 @@ export class PorkchopView {
         const v = this.grid.c3[iy * nx + ix];
         const p = ((ny - 1 - iy) * nx + ix) * 4;
         if (!isFinite(v) || v > this.c3Max) {
-          img.data.set([14, 18, 30, 255], p);
+          img.data.set([225, 226, 221, 255], p);
           continue;
         }
         const t = Math.log(1 + v - this.c3Min) / Math.log(1 + this.c3Max - this.c3Min);
@@ -154,9 +154,9 @@ export class PorkchopView {
     const xr = Math.min(p.x + p.w, Math.max(p.x, xOf(this.overlay.readyJD)));
     if (xr > p.x) {
       ctx.save();
-      ctx.fillStyle = 'rgba(5,8,16,0.72)';
+      ctx.fillStyle = 'rgba(236,237,233,0.8)';
       ctx.fillRect(p.x, p.y, xr - p.x, p.h);
-      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+      ctx.strokeStyle = 'rgba(18,19,20,0.16)';
       ctx.beginPath();
       for (let k = -p.h; k < xr - p.x; k += 8) {
         ctx.moveTo(p.x + k, p.y + p.h);
@@ -166,7 +166,7 @@ export class PorkchopView {
       ctx.clip();
       ctx.stroke();
       ctx.restore();
-      ctx.strokeStyle = '#ffb84d';
+      ctx.strokeStyle = '#8a5a00';
       ctx.setLineDash([4, 3]);
       ctx.beginPath();
       ctx.moveTo(xr, p.y);
@@ -174,7 +174,7 @@ export class PorkchopView {
       ctx.stroke();
       ctx.setLineDash([]);
       if (xr - p.x > 70) {
-        ctx.fillStyle = '#ffb84d';
+        ctx.fillStyle = '#8a5a00';
         ctx.font = '600 10px "IBM Plex Mono", monospace';
         ctx.fillText('NOT READY', p.x + 6, p.y + 14);
       }
@@ -182,16 +182,16 @@ export class PorkchopView {
     // too-long region
     if (s.tofMaxDays > this.overlay.maxTofDays) {
       const y = yOf(this.overlay.maxTofDays);
-      ctx.fillStyle = 'rgba(5,8,16,0.6)';
+      ctx.fillStyle = 'rgba(236,237,233,0.72)';
       ctx.fillRect(p.x, p.y, p.w, Math.max(0, y - p.y));
-      ctx.strokeStyle = '#ff6b6b';
+      ctx.strokeStyle = '#d3263a';
       ctx.setLineDash([4, 3]);
       ctx.beginPath();
       ctx.moveTo(p.x, y);
       ctx.lineTo(p.x + p.w, y);
       ctx.stroke();
       ctx.setLineDash([]);
-      ctx.fillStyle = '#ff9b9b';
+      ctx.fillStyle = '#d3263a';
       ctx.font = '600 10px "IBM Plex Mono", monospace';
       ctx.fillText('TOO LONG', p.x + p.w - 64, y - 5);
     }
@@ -204,7 +204,7 @@ export class PorkchopView {
       const v = this.grid.c3[iy * nx + ix];
       return isFinite(v) && v <= this.overlay.reachC3;
     };
-    ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+    ctx.strokeStyle = '#121314';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     for (let iy = 0; iy < ny; iy++)
@@ -221,9 +221,9 @@ export class PorkchopView {
     ctx.lineWidth = 1;
 
     // axes
-    ctx.strokeStyle = 'rgba(160,190,230,0.35)';
+    ctx.strokeStyle = '#121314';
     ctx.strokeRect(p.x + 0.5, p.y + 0.5, p.w, p.h);
-    ctx.fillStyle = '#9fb3cf';
+    ctx.fillStyle = '#505457';
     ctx.font = '10px "IBM Plex Mono", monospace';
     ctx.textAlign = 'center';
     const y0 = jdToDate(s.launchStartJD).getUTCFullYear();
@@ -257,12 +257,12 @@ export class PorkchopView {
     if (sel) {
       const x = xOf(sel.launchJD);
       const y = yOf(sel.tofDays);
-      ctx.strokeStyle = '#fff';
+      ctx.strokeStyle = '#121314';
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(x, y, 7, 0, Math.PI * 2);
       ctx.stroke();
-      ctx.fillStyle = '#ffa04d';
+      ctx.fillStyle = '#e3a21a';
       ctx.beginPath();
       ctx.arc(x, y, 3.5, 0, Math.PI * 2);
       ctx.fill();
@@ -272,7 +272,7 @@ export class PorkchopView {
     if (this.hover) {
       const x = p.x + (this.hover.ix + 0.5) * cw;
       const y = p.y + p.h - (this.hover.iy + 0.5) * chh;
-      ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+      ctx.strokeStyle = 'rgba(18,19,20,0.45)';
       ctx.setLineDash([2, 3]);
       ctx.beginPath();
       ctx.moveTo(x, p.y);

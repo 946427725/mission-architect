@@ -12,12 +12,13 @@ import { PorkchopGrid, computeGrid, transferAt } from '../physics/porkchop';
 import { formatDuration, formatJD, formatJDShort } from '../physics/time';
 import { CraftPreview } from '../scene/preview';
 import { SolarSystemView } from '../scene/solarSystem';
-import { $, $$, esc, fmtInt, fmtKg, fmtW, pct, statusIcon, toast } from './dom';
+import { $, $$, countdown, esc, fmtInt, fmtKg, fmtW, revLetter, statusIcon, toast, tween } from './dom';
 import { FlightPlayer } from './flight';
 import { PorkchopView, legendGradient } from './porkchop';
 import { renderReport, reportAction } from './report';
 
 type Screen = 'title' | 'select' | 'design' | 'flight' | 'report';
+type MeterSpec = { id: string; tab: Tab; label: string; value: number; fmt: (v: number) => string; unit: string; of: string; fill: number | null; st: Status };
 
 const TAB_LABEL: Record<Tab, string> = {
   trajectory: 'Trajectory',
@@ -49,6 +50,14 @@ export class App {
   private idleJD = PROJECT_START_JD;
   select = { missionId: 'mars', difficulty: 'normal' as Difficulty, team: false, players: ['', '', '', ''], count: 2 };
   flight: FlightPlayer | null = null;
+  panelAnim = true;
+  private overlayScreen: Screen | null = null;
+  private rev = 0;
+  private revShown = 0;
+  private lastPick: string | null = null;
+  private inkPrev: { left: number; width: number } | null = null;
+  private meterVals = new Map<string, number>();
+  private topKey = '';
 
   constructor() {
     this.view = new SolarSystemView($('#space'));
@@ -92,6 +101,10 @@ export class App {
     this.sim = null;
     this.attempt = 0;
     this.screen = 'design';
+    this.panelAnim = true;
+    this.rev = 0;
+    this.revShown = 0;
+    this.inkPrev = null;
     const m = missionOf(d);
     this.view.setHighlight(this.highlightBodies());
     this.view.frameSystem(FRAME_AU[m.id] ?? 6);
@@ -117,6 +130,7 @@ export class App {
   /** Called after any design change. */
   changed(opts: { panel?: boolean; resetSignoffs?: boolean } = {}) {
     this.evaluateNow();
+    this.rev++;
     if (opts.resetSignoffs !== false && this.team.enabled && Object.values(this.team.signoffs).some(Boolean)) {
       this.team.signoffs = { flight: false, engineer: false, science: false, ops: false };
       toast('Design changed - team sign-offs reset', 'warn');
@@ -387,7 +401,7 @@ export class App {
   // ------------------------------------------------------------------ rendering
   render() {
     document.body.dataset.screen = this.screen;
-    this.view.setViewInset(this.screen === 'design' && window.innerWidth > 900 ? 480 : 0);
+    this.view.setViewInset(window.innerWidth <= 900 ? 0 : this.screen === 'design' ? 480 : this.screen === 'title' ? Math.round(window.innerWidth * 0.55) : 0);
     this.renderTopbar();
     this.renderPanel();
     this.renderOverlay();
@@ -411,32 +425,69 @@ export class App {
   renderTopbar() {
     const bar = $('#topbar');
     if (this.screen !== 'design' || !this.ev || !this.design) {
-      bar.innerHTML = `<div class="brand"><span class="logo-mark"></span>MISSION ARCHITECT</div>`;
+      if (this.topKey !== 'plain') {
+        bar.innerHTML = `<div class="brand" role="button" data-act="home" tabindex="0"><span class="logo-mark"></span><span class="brand-text">Mission Architect</span></div>`;
+        this.topKey = 'plain';
+      }
       return;
     }
     const ev = this.ev;
     const m = ev.mission;
     const c = (ids: string[]) => this.worst(ev.checks.filter((k) => ids.includes(k.id)));
-    const meter = (_id: string, tab: Tab, label: string, value: string, fill: number | null, st: Status, sub = '') => `
-      <button class="meter ${st}" data-act="tab" data-tab="${tab}" title="${label}: ${value}">
-        <span class="m-label">${label}</span>
-        <span class="m-value">${value}</span>
-        <span class="m-bar"><i style="width:${fill === null ? 0 : Math.min(100, Math.max(2, fill * 100))}%"></i></span>
-        ${sub ? `<span class="m-sub">${sub}</span>` : ''}
-      </button>`;
     const cap = ev.mass.capacity;
-    bar.innerHTML = `
-      <div class="brand" role="button" data-act="home" tabindex="0"><span class="logo-mark"></span><span class="brand-text">MISSION ARCHITECT</span></div>
-      <div class="mission-tag"><b>${esc(m.name)}</b><span>${BODIES[m.target].name} ${m.type} · ${this.design.difficulty}</span></div>
-      <div class="meters">
-        ${meter('mass', 'launch', 'Mass', cap !== null ? `${fmtInt(ev.mass.launch)} / ${fmtInt(cap)} kg` : fmtKg(ev.mass.launch), cap ? ev.mass.launch / cap : null, c(['lv', 'rover']))}
-        ${meter('power', 'spacecraft', 'Power', `${fmtW(ev.power.avgLoad)} / ${fmtW(ev.power.generated)}`, ev.power.avgLoad / Math.max(1, ev.power.generated), c(['power', 'battery']))}
-        ${meter('dv', 'spacecraft', 'Δv', `${fmtInt(ev.dv.required * 1000)} / ${fmtInt(ev.dv.available * 1000)} m/s`, ev.dv.required / Math.max(1e-6, ev.dv.available), c(['dv']))}
-        ${meter('budget', 'comms', 'Budget', `$${fmtM(ev.cost.total)} / $${fmtM(ev.cost.cap)}`, ev.cost.total / ev.cost.cap, c(['budget']))}
-        ${meter('data', 'comms', 'Data', `${pct(ev.data.fraction)} returned`, ev.data.fraction, c(['data']))}
-        ${meter('science', 'science', 'Science', `${Math.round(ev.science.potential)} / ${m.scienceTarget} pts`, ev.science.potential / m.scienceTarget, c(['sci', 'hga']))}
-        ${meter('time', 'trajectory', 'Time', ev.time.tofDays ? formatDuration(ev.time.tofDays) : 'No route', ev.time.tofDays ? ev.time.tofDays / m.maxTofDays : null, c(['traj', 'ready', 'tof', 'entry']), `ready ${formatJDShort(ev.readyJD)}`)}
-      </div>`;
+    const specs: MeterSpec[] = [
+      { id: 'mass', tab: 'launch', label: 'Mass', value: ev.mass.launch, fmt: fmtInt, unit: 'kg', of: cap !== null ? `/ ${fmtInt(cap)}` : 'no route', fill: cap ? ev.mass.launch / cap : null, st: c(['lv', 'rover']) },
+      { id: 'power', tab: 'spacecraft', label: 'Power', value: ev.power.avgLoad, fmt: fmtInt, unit: 'W', of: `/ ${fmtInt(ev.power.generated)}`, fill: ev.power.avgLoad / Math.max(1, ev.power.generated), st: c(['power', 'battery']) },
+      { id: 'dv', tab: 'spacecraft', label: 'Δv', value: ev.dv.required * 1000, fmt: fmtInt, unit: 'm/s', of: `/ ${fmtInt(ev.dv.available * 1000)}`, fill: ev.dv.required / Math.max(1e-6, ev.dv.available), st: c(['dv']) },
+      { id: 'budget', tab: 'comms', label: 'Budget', value: ev.cost.total, fmt: (v) => '$' + fmtM(v), unit: '', of: `/ $${fmtM(ev.cost.cap)}`, fill: ev.cost.total / ev.cost.cap, st: c(['budget']) },
+      { id: 'data', tab: 'comms', label: 'Data', value: ev.data.fraction * 100, fmt: fmtInt, unit: '%', of: 'returned', fill: ev.data.fraction, st: c(['data']) },
+      { id: 'science', tab: 'science', label: 'Science', value: ev.science.potential, fmt: fmtInt, unit: 'pts', of: `/ ${m.scienceTarget}`, fill: ev.science.potential / m.scienceTarget, st: c(['sci', 'hga']) },
+      { id: 'time', tab: 'trajectory', label: 'Cruise', value: ev.time.tofDays ?? 0, fmt: (v) => (ev.time.tofDays ? formatDuration(v) : 'No route'), unit: '', of: `ready ${formatJDShort(ev.readyJD)}`, fill: ev.time.tofDays ? ev.time.tofDays / m.maxTofDays : null, st: c(['traj', 'ready', 'tof', 'entry']) },
+    ];
+    const key = `design:${m.id}`;
+    if (this.topKey !== key) {
+      this.topKey = key;
+      this.meterVals.clear();
+      bar.innerHTML = `
+        <div class="brand" role="button" data-act="home" tabindex="0"><span class="logo-mark"></span><span class="brand-text">Mission Architect</span>
+          <span class="brand-sub"><b>${esc(m.name)}</b>${BODIES[m.target].name} ${m.type} · ${this.design.difficulty}</span></div>
+        <div class="meters">${specs
+          .map((s) => `<button class="meter" data-act="tab" data-tab="${s.tab}" data-meter="${s.id}"><span class="m-label"><span>${s.label}</span><span class="m-of"></span></span><span class="m-value"><span class="m-num">${s.fmt(0)}</span><small>${s.unit}</small></span><span class="m-bar"><i></i></span></button>`)
+          .join('')}</div>`;
+    }
+    for (const s of specs) {
+      const el = bar.querySelector(`[data-meter="${s.id}"]`) as HTMLElement | null;
+      if (!el) continue;
+      el.className = `meter ${s.st}`;
+      el.title = `${s.label}: ${s.fmt(s.value)} ${s.unit} ${s.of}`;
+      (el.querySelector('.m-of') as HTMLElement).textContent = s.of;
+      (el.querySelector('.m-bar i') as HTMLElement).style.width = `${s.fill === null ? 0 : Math.min(100, Math.max(2, s.fill * 100))}%`;
+      const num = el.querySelector('.m-num') as HTMLElement;
+      const prev = this.meterVals.get(s.id);
+      if (prev === undefined) tween(num, 0, s.value, s.fmt, 1000);
+      else if (Math.abs(prev - s.value) > 1e-6) {
+        tween(num, prev, s.value, s.fmt, 550);
+        void el.offsetWidth;
+        el.classList.add('bump');
+      } else num.textContent = s.fmt(s.value);
+      this.meterVals.set(s.id, s.value);
+    }
+  }
+
+  private placeInk() {
+    const ink = $('#panel .tab-ink');
+    const act = $('#panel .tab.active');
+    if (!ink || !act) return;
+    const to = { left: act.offsetLeft, width: act.offsetWidth };
+    const from = this.inkPrev ?? to;
+    ink.style.left = `${from.left}px`;
+    ink.style.width = `${from.width}px`;
+    this.inkPrev = to;
+    if (from.left === to.left && from.width === to.width) return;
+    void ink.offsetWidth;
+    ink.classList.add('moving');
+    ink.style.left = `${to.left}px`;
+    ink.style.width = `${to.width}px`;
   }
 
   renderPanel() {
@@ -466,19 +517,35 @@ export class App {
     }
     const checks = ev.checks.filter((c) => c.area === this.tab);
     const idx = TABS.indexOf(this.tab);
+    const enter = this.panelAnim;
+    this.panelAnim = false;
+    const revBump = this.rev !== this.revShown;
+    this.revShown = this.rev;
+    const mm = ev.mission;
     panel.innerHTML = `
-      <nav class="tabs" role="tablist">${tabs}</nav>
-      <div class="panel-body">
+      <nav class="tabs" role="tablist">${tabs}<i class="tab-ink"></i></nav>
+      <div class="titleblock"><span>DWG <b>MA-${mm.id.toUpperCase()}-0${idx + 1}</b> · ${esc(mm.name)}</span><span>SHEET <b>${idx + 1}/5</b></span><span class="rev ${revBump && !enter ? 'bump' : ''}">REV <b>${revLetter(this.rev)}</b></span></div>
+      <div class="panel-body ${enter ? 'enter' : ''}">
         ${who}${hint}
         ${body}
-        ${checks.length ? `<section class="checks"><h3>Checks</h3>${checks.map((c) => `<div class="check ${c.status}">${statusIcon(c.status)}<div><b>${c.label}</b><p>${c.detail}</p></div></div>`).join('')}</section>` : ''}
+        ${checks.length ? `<section class="checks"><h3>Inspection</h3>${checks.map((c) => `<div class="check ${c.status}">${statusIcon(c.status)}<div><b>${c.label}</b><p>${c.detail}</p></div></div>`).join('')}</section>` : ''}
         <div class="nav-btns">
           ${idx > 0 ? `<button class="btn ghost" data-act="tab" data-tab="${TABS[idx - 1]}">← ${TAB_LABEL[TABS[idx - 1]]}</button>` : '<span></span>'}
           ${idx < TABS.length - 1 ? `<button class="btn" data-act="tab" data-tab="${TABS[idx + 1]}">${TAB_LABEL[TABS[idx + 1]]} →</button>` : ''}
         </div>
       </div>`;
     const pb = $('.panel-body', panel);
-    if (pb) pb.scrollTop = scroll;
+    if (pb) {
+      pb.scrollTop = enter ? 0 : scroll;
+      Array.from(pb.children).forEach((c, i) => (c as HTMLElement).style.setProperty('--i', String(Math.min(i, 14))));
+    }
+    this.placeInk();
+    if (this.lastPick) {
+      const [k, v] = this.lastPick.split('=');
+      const sel = k === 'instr' ? `[data-act="instr"][data-val="${v}"]` : `[data-key="${k}"][data-val="${v}"]`;
+      panel.querySelector(sel)?.classList.add('just');
+      this.lastPick = null;
+    }
     if (this.tab === 'trajectory') this.mountPorkchop();
   }
 
@@ -511,7 +578,7 @@ export class App {
     const ls = m.grids[d.trajectoryKind]!;
     return `
       <h2>Choose your launch window</h2>
-      <p class="lead">This is a ${term('porkchop', 'porkchop plot')}, the same tool NASA uses. Each pixel is a real trajectory computed from planet positions. <b>Blue = cheap, red = expensive.</b> Inside the <b class="white">white outline</b> your current rocket can lift your current spacecraft.</p>
+      <p class="lead">This is a ${term('porkchop', 'porkchop plot')}, the same tool NASA uses. Each pixel is a real trajectory computed from planet positions. <b>Deep blue = cheap, red = expensive.</b> Inside the <b class="white">black outline</b> your current rocket can lift your current spacecraft.</p>
       ${routes}
       ${chips}
       ${grid
@@ -657,7 +724,7 @@ export class App {
       <div class="polls">${poll}</div>
       ${team}
       <div class="launch-row">
-        <button class="btn launch" data-act="launch" ${canLaunch ? '' : 'disabled'}>${ev.launchable ? (allSigned ? 'LAUNCH' : 'Waiting for sign-offs') : 'NO-GO: fix red items'}</button>
+        <button class="btn launch" data-hold="launch" data-act="launch-hint" ${canLaunch ? '' : 'disabled'}><i class="hold-fill"></i><span>${ev.launchable ? (allSigned ? 'Launch' : 'Waiting for sign-offs') : 'No-go · fix red items'}${canLaunch ? '<small>Press and hold</small>' : ''}</span></button>
         <button class="btn ghost small" data-act="share">Copy share link</button>
       </div>`;
   }
@@ -669,21 +736,30 @@ export class App {
     else if (this.screen === 'select') o.innerHTML = this.selectHTML();
     else if (this.screen === 'report' && this.sim) o.innerHTML = renderReport(this);
     else o.innerHTML = '';
-    o.className = this.screen === 'design' || this.screen === 'flight' ? '' : 'show';
+    const changed = this.overlayScreen !== this.screen;
+    this.overlayScreen = this.screen;
+    o.className = (this.screen === 'design' || this.screen === 'flight' ? '' : 'show') + (changed ? ' enter' : '');
+    if (changed && this.screen === 'report' && this.sim) {
+      const total = this.sim.score.total;
+      setTimeout(() => {
+        const s = $('#report .score b');
+        if (s) tween(s, 0, total, fmtInt, 1300);
+      }, 450);
+    }
   }
 
   private titleHTML(): string {
     const lb = loadLeaderboard().slice(0, 3);
     return `<div class="title-card">
       <div class="eyebrow">NASA Space Apps Challenge 2026 · Space Mission Design Game</div>
-      <h1>Mission<br>Architect</h1>
+      <h1><span class="w"><span>Mission</span></span><span class="w"><span>Architect</span></span></h1>
       <p class="tagline">Design a real space mission. <b>Physics decides</b> if it works.</p>
       <ul class="features">
-        <li><b>Real orbital mechanics.</b> Every trajectory is solved from NASA/JPL planet positions. It reproduces New Horizons' real Jupiter flyby to within 2%.</li>
-        <li><b>Real trade-offs.</b> Mass, power, Δv, budget, data, radiation and time all pull against each other.</li>
-        <li><b>Learn by failing.</b> Every success or failure is explained, then compared with what NASA actually did.</li>
+        <li><b>Real orbits</b>Trajectories solved from NASA/JPL planet positions. New Horizons' Jupiter flyby reproduced within 2%.</li>
+        <li><b>Real trade-offs</b>Mass, power, Δv, budget, data, radiation and time pull against each other.</li>
+        <li><b>Learn by failing</b>Every outcome is explained, then compared with the real NASA mission.</li>
       </ul>
-      <div class="cta">
+      <div class="cta on-space">
         <button class="btn big" data-act="to-select">Start a mission</button>
         <button class="btn ghost" data-act="howto">How it works</button>
       </div>
@@ -807,7 +883,43 @@ export class App {
       const el = (e.target as HTMLElement).closest('.term') as HTMLElement | null;
       if (el) show(el);
     });
+    // press-and-hold to launch
+    let holdTimer = 0;
+    const endHold = (b: HTMLElement | null) => {
+      clearInterval(holdTimer);
+      holdTimer = 0;
+      if (b) {
+        b.classList.remove('holding');
+        b.style.setProperty('--p', '0');
+      }
+    };
+    document.addEventListener('pointerdown', (e) => {
+      const b = (e.target as HTMLElement).closest('[data-hold=launch]') as HTMLButtonElement | null;
+      if (!b || b.disabled) return;
+      e.preventDefault();
+      const t0 = performance.now();
+      b.classList.add('holding');
+      clearInterval(holdTimer);
+      holdTimer = window.setInterval(() => {
+        const p = Math.min(1, (performance.now() - t0) / 1100);
+        b.style.setProperty('--p', p.toFixed(3));
+        if (p >= 1) {
+          endHold(b);
+          this.launch();
+        }
+      }, 16);
+      const release = () => holdTimer && endHold(b);
+      b.addEventListener('pointerleave', release, { once: true });
+      document.addEventListener('pointerup', release, { once: true });
+      document.addEventListener('pointercancel', release, { once: true });
+    });
     document.addEventListener('keydown', (e) => {
+      const t = e.target as HTMLElement;
+      if ((e.key === 'Enter' || e.key === ' ') && t.matches?.('[data-hold=launch]:not([disabled])')) {
+        e.preventDefault();
+        this.launch();
+        return;
+      }
       if (e.key === 'Escape') {
         hide();
         $('#howto')?.classList.add('hidden');
@@ -846,6 +958,7 @@ export class App {
       }
       case 'tab':
         if (this.screen !== 'design') return;
+        if (this.tab !== el.dataset.tab) this.panelAnim = true;
         this.tab = el.dataset.tab as Tab;
         if (this.tab === 'launch') this.maybeProgramEvent();
         this.render();
@@ -867,6 +980,7 @@ export class App {
       case 'set':
         if (!d) return;
         (d as unknown as Record<string, string>)[el.dataset.key!] = el.dataset.val!;
+        this.lastPick = `${el.dataset.key}=${el.dataset.val}`;
         this.changed();
         break;
       case 'dish':
@@ -878,6 +992,7 @@ export class App {
         if (!d) return;
         const id = el.dataset.val!;
         d.instruments = d.instruments.includes(id) ? d.instruments.filter((x) => x !== id) : [...d.instruments, id];
+        this.lastPick = `instr=${id}`;
         this.changed();
         break;
       }
@@ -896,18 +1011,33 @@ export class App {
         );
         break;
       }
-      case 'launch':
-        if (!d || !this.ev?.launchable) return;
-        this.attempt++;
-        this.screen = 'flight';
-        this.render();
-        this.flight = new FlightPlayer(this);
-        this.flight.start();
+      case 'launch-hint':
+        if (this.screen === 'design') toast('Press and hold the button to launch', 'info');
         break;
       default:
         this.flight?.action(act, el);
         reportAction(this, act, el);
     }
+  }
+
+  /** Start the launch: countdown over Earth, then the flight. */
+  launch() {
+    const d = this.design;
+    if (!d || !d.transfer || !this.ev?.launchable) return;
+    this.attempt++;
+    this.flight?.stop();
+    this.screen = 'flight';
+    this.render();
+    this.view.setCloseupModel(null);
+    this.view.setDate(d.transfer.launchJD);
+    this.view.showTransfer(d.transfer);
+    this.view.setCraftAt(d.transfer.launchJD);
+    this.view.followTarget('earth', 1.3);
+    countdown(`${missionOf(d).name} · ${rocketById(d.rocketId).name} · ${formatJD(d.transfer.launchJD)}`, () => {
+      if (this.screen !== 'flight') return;
+      this.flight = new FlightPlayer(this);
+      this.flight.start();
+    });
   }
 
   private maybeProgramEvent() {

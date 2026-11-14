@@ -83,7 +83,7 @@ export class SolarSystemView {
 
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    this.composer.addPass(new UnrealBloomPass(new THREE.Vector2(512, 512), 0.9, 0.5, 0.82));
+    this.composer.addPass(new UnrealBloomPass(new THREE.Vector2(512, 512), 0.7, 0.45, 0.85));
     this.composer.addPass(new OutputPass());
 
     this.scene.add(new THREE.AmbientLight(0xffffff, 0.08));
@@ -95,7 +95,7 @@ export class SolarSystemView {
     for (const id of ALL) this.buildPlanet(id);
     this.scene.add(this.transferGroup);
 
-    const craftMat = new THREE.SpriteMaterial({ map: glowTexture('rgba(220,250,255,1)', 'rgba(90,209,255,0)'), depthTest: false, transparent: true, blending: THREE.AdditiveBlending });
+    const craftMat = new THREE.SpriteMaterial({ map: glowTexture('rgba(255,244,214,1)', 'rgba(227,162,26,0)'), depthTest: false, transparent: true, blending: THREE.AdditiveBlending });
     this.craft = new THREE.Sprite(craftMat);
     this.craft.material.sizeAttenuation = false;
     this.craft.scale.setScalar(0.045);
@@ -103,7 +103,7 @@ export class SolarSystemView {
     this.craft.renderOrder = 10;
     this.scene.add(this.craft);
 
-    this.trailMat = this.lineMaterial(0x9cf0ff, 3, 1);
+    this.trailMat = this.lineMaterial(0xffd27a, 3, 1);
     this.trail = new Line2(new LineGeometry(), this.trailMat);
     this.trail.visible = false;
     this.scene.add(this.trail);
@@ -232,7 +232,9 @@ export class SolarSystemView {
     this.highlight = new Set(ids);
     for (const [id, p] of this.planets) {
       const on = this.highlight.has(id);
-      (p.orbit.material as THREE.LineBasicMaterial).opacity = on ? 0.7 : 0.16;
+      const om = p.orbit.material as THREE.LineBasicMaterial;
+      om.opacity = on ? 0.6 : 0.1;
+      om.color.set(on ? BODIES[id].color : '#bdbab0');
       p.label.element.classList.toggle('dim', !on);
     }
   }
@@ -284,8 +286,8 @@ export class SolarSystemView {
       const g = new LineGeometry();
       g.setPositions(legPts.flatMap((p) => [p.x, p.y, p.z]));
       const colors: number[] = [];
-      const c1 = new THREE.Color(preview ? 0x5f7fa0 : 0x5ad1ff);
-      const c2 = new THREE.Color(preview ? 0x8f7f6f : 0xffa04d);
+      const c1 = new THREE.Color(preview ? 0x8a8f94 : 0xf2f1ec);
+      const c2 = new THREE.Color(preview ? 0x9a8a6a : 0xe3a21a);
       legPts.forEach((_, i) => {
         const c = c1.clone().lerp(c2, i / legPts.length);
         colors.push(c.r, c.g, c.b);
