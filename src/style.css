@@ -138,6 +138,22 @@ body[data-screen='design'] .brand { border-right: 1px solid var(--ink); width: v
 .meter.bump .m-value { animation: bump 0.55s var(--ease); }
 @keyframes bump { 35% { transform: translateY(-2px); color: var(--foil-deep); } }
 
+.sound-toggle {
+  display: flex; align-items: center; gap: 9px; padding: 0 16px; margin-left: auto; flex: none;
+  background: none; border: 0; border-left: 1px solid var(--hud-rule); color: inherit;
+  font: 500 10px var(--mono); letter-spacing: 0.1em; text-transform: uppercase; transition: background 0.2s;
+}
+body[data-screen='design'] .sound-toggle { margin-left: 0; border-left-color: var(--ink); }
+.sound-toggle:hover { background: color-mix(in srgb, currentColor 8%, transparent); }
+.sound-bars { display: flex; align-items: flex-end; gap: 2px; height: 12px; }
+.sound-bars i { width: 2px; height: 3px; background: currentColor; transition: height 0.3s; }
+.sound-toggle[aria-pressed='true'] .sound-bars i { animation: eq 0.9s ease-in-out infinite; }
+.sound-toggle[aria-pressed='true'] .sound-bars i:nth-child(2) { animation-delay: 0.15s; }
+.sound-toggle[aria-pressed='true'] .sound-bars i:nth-child(3) { animation-delay: 0.3s; }
+.sound-toggle[aria-pressed='true'] .sound-bars i:nth-child(4) { animation-delay: 0.45s; }
+.sound-toggle[aria-pressed='false'] { opacity: 0.6; }
+@keyframes eq { 0%, 100% { height: 3px; } 50% { height: 12px; } }
+
 /* ------------------------------------------------------------ panel (sheet) */
 #panel {
   position: fixed; top: var(--top); left: 0; bottom: 0; width: var(--panel-w); z-index: 10;
@@ -603,6 +619,8 @@ body[data-screen='flight'] #topbar .meters { display: none; }
   .brand { padding: 12px 16px; }
   body[data-screen='design'] .brand { border-right: 0; flex: 1 0 100%; border-bottom: 1px solid var(--rule); }
   .meters { flex: 1 0 100%; }
+  .sound-label { display: none; }
+  body[data-screen='design'] .sound-toggle { position: absolute; top: 0; right: 0; height: 46px; border-left: 0; }
   body[data-screen='design'] #panel { top: 46vh; border-right: 0; border-top: 1px solid var(--ink); }
   #frame { display: none; }
   #craft-card { top: calc(var(--top) + 8px); bottom: auto; right: 8px; width: 46vw; height: calc(46vh - var(--top) - 16px); }

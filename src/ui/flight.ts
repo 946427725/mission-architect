@@ -11,6 +11,7 @@ import { buildCraftModel } from '../scene/craftModel';
 import { UNITS_PER_AU } from '../scene/solarSystem';
 import type { App } from './app';
 import { $, esc } from './dom';
+import { sound } from './sound';
 
 const FRAME_AU: Record<string, number> = { mars: 2.3, jupiter: 6.8, pluto: 44 };
 
@@ -42,6 +43,7 @@ export class FlightPlayer {
     v.showTransfer(d.transfer);
     v.setCraftAt(this.jd);
     v.followTarget('earth', 1.3);
+    sound.droneStart();
     this.renderHUD();
     this.last = performance.now();
     requestAnimationFrame((t) => this.tick(t));
@@ -49,6 +51,7 @@ export class FlightPlayer {
 
   stop() {
     this.stopped = true;
+    sound.droneStop();
     $('#hud').innerHTML = '';
     $('#hud').className = '';
   }
@@ -110,6 +113,12 @@ export class FlightPlayer {
     card.className = `ev ${ev.tone}`;
     card.innerHTML = `<div class="ev-date">${formatJD(ev.jd)}</div><b>${esc(ev.title)}</b><p>${esc(ev.text)}</p>${ev.saved ? `<span class="saved">Saved by: ${esc(ev.saved)}</span>` : ''}`;
     feed.prepend(card);
+    if (ev.phase !== 'launch' && ev.phase !== 'end') {
+      if (ev.tone === 'critical') sound.alarm();
+      else if (ev.tone === 'bad') sound.bad();
+      else if (ev.tone === 'good') sound.good();
+      else sound.quindar();
+    }
     while (feed.children.length > 4) feed.lastElementChild?.remove();
 
     const v = this.app.view;

@@ -1,3 +1,5 @@
+import { sound } from './sound';
+
 export const $ = <T extends HTMLElement = HTMLElement>(sel: string, root: ParentNode = document) => root.querySelector(sel) as T;
 export const $$ = <T extends HTMLElement = HTMLElement>(sel: string, root: ParentNode = document) =>
   Array.from(root.querySelectorAll(sel)) as T[];
@@ -78,6 +80,8 @@ export function countdown(label: string, done: () => void) {
     }
     const s = steps[i++];
     const word = s.length > 1;
+    if (word) sound.liftoff();
+    else sound.countBeep(Number(s));
     el.innerHTML = `<div class="cd-ring"></div><div class="cd-num ${word ? 'word' : ''}">${s}</div><div class="cd-label">${word ? 'Ignition' : `T-minus ${s}`} · ${esc(label)}</div>`;
     setTimeout(next, fast ? 120 : word ? 950 : 820);
   };

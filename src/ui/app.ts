@@ -16,6 +16,7 @@ import { $, $$, countdown, esc, fmtInt, fmtKg, fmtW, revLetter, statusIcon, toas
 import { FlightPlayer } from './flight';
 import { PorkchopView, legendGradient } from './porkchop';
 import { renderReport, reportAction } from './report';
+import { sound } from './sound';
 
 type Screen = 'title' | 'select' | 'design' | 'flight' | 'report';
 type MeterSpec = { id: string; tab: Tab; label: string; value: number; fmt: (v: number) => string; unit: string; of: string; fill: number | null; st: Status };
@@ -129,7 +130,10 @@ export class App {
 
   /** Called after any design change. */
   changed(opts: { panel?: boolean; resetSignoffs?: boolean } = {}) {
+    const wasGo = this.ev?.launchable;
     this.evaluateNow();
+    if (wasGo === true && this.ev && !this.ev.launchable) setTimeout(() => sound.warn(), 90);
+    else if (wasGo === false && this.ev?.launchable) setTimeout(() => sound.go(), 90);
     this.rev++;
     if (opts.resetSignoffs !== false && this.team.enabled && Object.values(this.team.signoffs).some(Boolean)) {
       this.team.signoffs = { flight: false, engineer: false, science: false, ops: false };
@@ -426,7 +430,7 @@ export class App {
     const bar = $('#topbar');
     if (this.screen !== 'design' || !this.ev || !this.design) {
       if (this.topKey !== 'plain') {
-        bar.innerHTML = `<div class="brand" role="button" data-act="home" tabindex="0"><span class="logo-mark"></span><span class="brand-text">Mission Architect</span></div>`;
+        bar.innerHTML = `<div class="brand" role="button" data-act="home" tabindex="0"><span class="logo-mark"></span><span class="brand-text">Mission Architect</span></div>${this.soundButton()}`;
         this.topKey = 'plain';
       }
       return;
@@ -453,7 +457,7 @@ export class App {
           <span class="brand-sub"><b>${esc(m.name)}</b>${BODIES[m.target].name} ${m.type} · ${this.design.difficulty}</span></div>
         <div class="meters">${specs
           .map((s) => `<button class="meter" data-act="tab" data-tab="${s.tab}" data-meter="${s.id}"><span class="m-label"><span>${s.label}</span><span class="m-of"></span></span><span class="m-value"><span class="m-num">${s.fmt(0)}</span><small>${s.unit}</small></span><span class="m-bar"><i></i></span></button>`)
-          .join('')}</div>`;
+          .join('')}</div>${this.soundButton()}`;
     }
     for (const s of specs) {
       const el = bar.querySelector(`[data-meter="${s.id}"]`) as HTMLElement | null;
@@ -472,6 +476,18 @@ export class App {
       } else num.textContent = s.fmt(s.value);
       this.meterVals.set(s.id, s.value);
     }
+  }
+
+  private soundButton(): string {
+    const on = !sound.muted;
+    return `<button class="sound-toggle" data-act="sound" aria-pressed="${on}" title="Turn sound ${on ? 'off' : 'on'}"><span class="sound-bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="sound-label">${on ? 'Sound on' : 'Sound off'}</span></button>`;
+  }
+
+  private clickSound(act: string) {
+    if (act === 'sound' || act === 'launch-hint' || act === 'home') return;
+    if (act === 'tab' || act === 'begin' || act === 'to-select' || act === 'redesign' || act === 'next-mission' || act === 'howto') sound.sheet();
+    else if (['set', 'instr', 'route', 'dish', 'zoom', 'unzoom', 'best', 'pick-mission', 'pick-diff', 'pick-mode', 'pick-count', 'autoprop', 'speed'].includes(act)) sound.select();
+    else sound.click();
   }
 
   private placeInk() {
@@ -745,6 +761,10 @@ export class App {
         const s = $('#report .score b');
         if (s) tween(s, 0, total, fmtInt, 1300);
       }, 450);
+      const sim = this.sim;
+      setTimeout(() => sound.fanfare(sim.outcome), 350);
+      setTimeout(() => sound.stamp(), 1100);
+      for (let i = 0; i < sim.score.stars; i++) setTimeout(() => sound.star(i), 1300 + i * 150);
     }
   }
 
@@ -827,6 +847,8 @@ export class App {
       const t = (e.target as HTMLElement).closest('[data-act]') as HTMLElement | null;
       if (!t) return;
       if (t.tagName === 'INPUT' && (t as HTMLInputElement).type === 'checkbox') return; // handled in change
+      sound.unlock();
+      this.clickSound(t.dataset.act!);
       this.action(t.dataset.act!, t);
     });
     document.addEventListener('change', (e) => {
@@ -888,6 +910,7 @@ export class App {
     const endHold = (b: HTMLElement | null) => {
       clearInterval(holdTimer);
       holdTimer = 0;
+      sound.holdStop();
       if (b) {
         b.classList.remove('holding');
         b.style.setProperty('--p', '0');
@@ -899,10 +922,13 @@ export class App {
       e.preventDefault();
       const t0 = performance.now();
       b.classList.add('holding');
+      sound.unlock();
+      sound.holdStart();
       clearInterval(holdTimer);
       holdTimer = window.setInterval(() => {
         const p = Math.min(1, (performance.now() - t0) / 1100);
         b.style.setProperty('--p', p.toFixed(3));
+        sound.holdUpdate(p);
         if (p >= 1) {
           endHold(b);
           this.launch();
@@ -1011,6 +1037,17 @@ export class App {
         );
         break;
       }
+      case 'sound': {
+        sound.setMuted(!sound.muted);
+        document.querySelectorAll('.sound-toggle').forEach((b) => {
+          b.setAttribute('aria-pressed', String(!sound.muted));
+          b.setAttribute('title', `Turn sound ${sound.muted ? 'on' : 'off'}`);
+          const l = b.querySelector('.sound-label');
+          if (l) l.textContent = sound.muted ? 'Sound off' : 'Sound on';
+        });
+        if (!sound.muted) sound.select();
+        break;
+      }
       case 'launch-hint':
         if (this.screen === 'design') toast('Press and hold the button to launch', 'info');
         break;
@@ -1059,6 +1096,7 @@ export class App {
     setTimeout(() => {
       const o = $('#overlay');
       o.className = 'show';
+      sound.bad();
       o.innerHTML = `<div class="modal-card event"><div class="eyebrow">Program update</div><h2>${ev.title}</h2><p>${ev.text}</p><button class="btn" data-act="close-event">Understood - re-plan</button></div>`;
     }, 50);
   }
