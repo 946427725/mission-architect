@@ -178,14 +178,15 @@ export function evaluate(d: Design): Evaluation {
   let speedFactor = 1;
   if (m.type === 'flyby' && tr) speedFactor = Math.min(1.2, Math.max(0.6, 1 + (13.8 - tr.vinfArr) * 0.04));
   const orbitFactor = radiation ? Math.min(1.4, Math.sqrt(radiation.scienceOrbits / 30)) : 1;
+  const objective = m.objectives.find((o) => o.id === d.objectiveId) ?? m.objectives[0];
   for (const i of instr) {
-    let s = i.science * dataFraction * orbitFactor * speedFactor;
+    let s = i.science * (objective.weights[i.id] ?? 1) * dataFraction * orbitFactor * speedFactor;
     if (i.needsHGA && !hasHGA) s = 0;
     sciItems.push([i.name, s]);
   }
   if (orbit && orbit.moonBonus > 0) {
     const remote = instr.filter((i) => ['cam', 'jiram', 'uvs'].includes(i.id)).length;
-    if (remote) sciItems.push(['Moon flybys (Io, Europa, Ganymede)', orbit.moonBonus * Math.min(1, remote / 2) * dataFraction]);
+    if (remote) sciItems.push(['Moon flybys (Io, Europa, Ganymede)', orbit.moonBonus * (objective.id === 'moons' ? 2 : 1) * Math.min(1, remote / 2) * dataFraction]);
   }
   if (tr?.kind === 'jga' && instr.some((i) => i.id === 'lorri' || i.id === 'ralph')) sciItems.push(['Bonus: Jupiter flyby science', 8]);
   const outreach = instr.filter((i) => i.outreach).length;
@@ -293,6 +294,8 @@ export function evaluate(d: Design): Evaluation {
       ? `Expected ${Math.round(potential)} science points (goal ${m.scienceTarget}).`
       : `Expected ${Math.round(potential)} of ${m.scienceTarget} points. Add instruments, return more data${radiation ? ' or survive more orbits' : ''}.`,
   });
+  if (objective.needsOrbit && orbit && orbit.id !== objective.needsOrbit)
+    add({ id: 'objective', area: 'science', label: 'Orbit fits the objective', status: 'warn', detail: `"${objective.name}" needs the ${JUPITER_ORBITS.find((o) => o.id === objective.needsOrbit)!.name.toLowerCase()} to fly past the moons. Change the orbit on the Craft step.` });
   const orphan = instr.filter((i) => i.needsHGA && !hasHGA);
   if (orphan.length)
     add({ id: 'hga', area: 'science', label: 'Instrument needs a dish', status: 'warn', detail: `${orphan.map((i) => i.name).join(', ')} needs a high-gain antenna to work.` });

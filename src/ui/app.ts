@@ -48,7 +48,11 @@ const STEP_HEAD: Record<Tab, (d: Design, ev: Evaluation) => { title: string; sub
         ? 'Survive Jupiter: enough power 5 AU from the Sun, a vault against radiation, fuel for the braking burn.'
         : 'Travel light: power that works 40 AU from the Sun, and fuel for course corrections.',
   }),
-  science: (d) => ({ title: 'Instruments', sub: `Pick instruments worth ${missionOf(d).scienceTarget}+ science points. Each one costs mass, power and money.` }),
+  science: (d) => {
+    const m = missionOf(d);
+    const o = m.objectives.find((x) => x.id === d.objectiveId) ?? m.objectives[0];
+    return { title: 'Instruments', sub: `Reach ${m.scienceTarget}+ points for "${o.name}". Instruments marked ★ count extra for this goal.` };
+  },
   comms: (d) => ({ title: 'Data & budget', sub: missionOf(d).type === 'lander' ? 'Relay orbiters carry most rover data; a dish is your backup. Stay under the red budget line.' : 'Get your science data home and stay under the red budget line.' }),
   launch: () => ({ title: 'Launch', sub: 'Pick a rocket with a green bar, then press and hold Launch.' }),
 };
@@ -81,7 +85,7 @@ export class App {
   private porkHost: HTMLElement | null = null;
   private porkKey = '';
   private idleJD = PROJECT_START_JD;
-  select = { missionId: 'mars', difficulty: 'normal' as Difficulty, team: false, players: ['', '', '', ''], count: 2 };
+  select = { missionId: 'mars', difficulty: 'normal' as Difficulty, team: false, players: ['', '', '', ''], count: 2, objectiveId: '' };
   flight: FlightPlayer | null = null;
   panelAnim = true;
   private overlayScreen: Screen | null = null;
@@ -494,13 +498,13 @@ export class App {
       { id: 'science', tab: 'science', label: 'Science', value: ev.science.potential, fmt: fmtInt, unit: 'pts', of: `goal ${m.scienceTarget}`, fill: ev.science.potential / m.scienceTarget, st: c(['sci', 'hga']) },
       { id: 'time', tab: 'trajectory', label: 'Trip', value: ev.time.tofDays ?? 0, fmt: (v) => (ev.time.tofDays ? formatDuration(v) : 'No route'), unit: '', of: '', fill: ev.time.tofDays ? ev.time.tofDays / m.maxTofDays : null, st: c(['traj', 'ready', 'tof', 'entry']) },
     ];
-    const key = `design:${m.id}`;
+    const key = `design:${m.id}:${this.design.objectiveId}`;
     if (this.topKey !== key) {
       this.topKey = key;
       this.meterVals.clear();
       bar.innerHTML = `
         <div class="brand" role="button" data-act="home" tabindex="0"><span class="logo-mark"></span><span class="brand-text">Mission Architect</span>
-          <span class="brand-sub"><b>${esc(m.name)}</b>${BODIES[m.target].name} ${m.type} · ${this.design.difficulty}</span></div>
+          <span class="brand-sub"><b>${esc(m.name)}</b>${esc((m.objectives.find((o) => o.id === this.design!.objectiveId) ?? m.objectives[0]).name)} · ${this.design.difficulty}</span></div>
         <div class="meters">${specs
           .map((s) => `<button class="meter" data-act="tab" data-tab="${s.tab}" data-meter="${s.id}"><span class="m-label"><span><i class="m-flag"></i>${s.label}</span><span class="m-of"></span></span><span class="m-value"><span class="m-num">${s.fmt(0)}</span><small>${s.unit}</small></span><span class="m-bar"><i></i></span></button>`)
           .join('')}</div>${this.soundButton()}`;
@@ -871,14 +875,18 @@ export class App {
     const m = missionOf(d);
     const ev = this.ev!;
     const unit = m.type === 'flyby' ? 'Gbit' : 'Mbit/day';
+    const obj = m.objectives.find((o) => o.id === d.objectiveId) ?? m.objectives[0];
     const pctSci = Math.min(1.5, ev.science.potential / m.scienceTarget);
     return `<div class="big-meter ${ev.science.potential >= m.scienceTarget ? 'ok' : ''}">
         <div class="bm-num"><b>${Math.round(ev.science.potential)}</b><span>/ ${m.scienceTarget} science points</span></div>
         <div class="sci-bar"><i style="width:${(pctSci / 1.5) * 100}%"></i><span class="goal" style="left:${(1 / 1.5) * 100}%"></span></div>
       </div>
-      <div class="group"><label>Instruments · science points each</label><div class="tiles two">${m.instruments.map((i) => {
+      <div class="group"><label>Science objective</label><div class="windows obj-chips">${m.objectives.map((o) => `<button class="chip ${o.id === obj.id ? 'on' : ''}" data-act="set" data-key="objectiveId" data-val="${o.id}" data-tip="${esc(o.desc)}" data-tip-title="${esc(o.name)}">${esc(o.name)}</button>`).join('')}</div></div>
+      <div class="group"><label>Instruments · points for this objective</label><div class="tiles two">${m.instruments.map((i) => {
         const on = d.instruments.includes(i.id);
-        return this.tile({ key: 'instr', id: i.id, act: 'instr', name: i.name, sub: `like ${i.analog}`, big: `+${i.science}`, small: `${i.mass} kg · ${i.power} W · $${i.costM}M`, tip: `${i.desc} Sends ${i.data} ${unit} of data.`, selected: on, badge: i.needsHGA ? 'needs dish' : i.outreach ? 'outreach +3' : '' });
+        const w = obj.weights[i.id] ?? 1;
+        const key = w >= 1.3 ? '★ key for your goal' : w <= 0.6 ? 'minor for your goal' : '';
+        return this.tile({ key: 'instr', id: i.id, act: 'instr', name: `${w >= 1.3 ? '★ ' : ''}${i.name}`, sub: `like ${i.analog}`, big: `+${Math.round(i.science * w)}`, small: `${i.mass} kg · ${i.power} W · $${i.costM}M`, tip: `${i.desc} Sends ${i.data} ${unit} of data.${w !== 1 ? ` Counts ${w}× for "${obj.name}".` : ''}`, selected: on, badge: key || (i.needsHGA ? 'needs dish' : i.outreach ? 'outreach +3' : '') });
       }).join('')}</div></div>`;
   }
 
@@ -1034,6 +1042,10 @@ export class App {
       <h2>Choose your mission</h2>
       <div class="mission-cards">${cards}</div>
       <div class="brief"><b>${esc(m.name)}:</b> ${esc(m.brief)}</div>
+      <div class="objectives"><h4>Choose your science objective</h4><div class="obj-tiles">${m.objectives.map((o, i) => {
+        const sel = (s.objectiveId || m.objectives[0].id) === o.id;
+        return `<button class="obj ${sel ? 'sel' : ''}" data-act="pick-objective" data-val="${o.id}" aria-pressed="${sel}"><span class="obj-n">0${i + 1}</span><b>${esc(o.name)}</b><span>${esc(o.desc)}</span></button>`;
+      }).join('')}</div></div>
       <div class="select-row">
         <div><h4>Difficulty</h4><div class="seg">${(['easy', 'normal', 'hard', 'sandbox'] as Difficulty[]).map((x) => `<button class="${s.difficulty === x ? 'on' : ''}" data-act="pick-diff" data-val="${x}">${x[0].toUpperCase() + x.slice(1)}</button>`).join('')}</div>
           <p class="small-note">${{ easy: '+20% budget, gentle random events, tips open.', normal: 'Realistic. Expect surprises, like a budget cut.', hard: 'Rockets can fail, more breakdowns, no tips. Score ×1.25.', sandbox: 'Huge budget, no random events. Just experiment (score ×0.5).' }[s.difficulty]}</p></div>
@@ -1191,7 +1203,8 @@ export class App {
       case 'to-title': this.go('title'); break;
       case 'howto': $('#howto')?.classList.remove('hidden'); break;
       case 'howto-close': $('#howto')?.classList.add('hidden'); break;
-      case 'pick-mission': this.select.missionId = el.dataset.val!; this.renderOverlay(); break;
+      case 'pick-mission': this.select.missionId = el.dataset.val!; this.select.objectiveId = ''; this.renderOverlay(); break;
+      case 'pick-objective': this.select.objectiveId = el.dataset.val!; this.renderOverlay(); break;
       case 'pick-diff': this.select.difficulty = el.dataset.val as Difficulty; this.renderOverlay(); break;
       case 'pick-mode': this.select.team = el.dataset.val === 'team'; this.renderOverlay(); break;
       case 'pick-count': this.select.count = Number(el.dataset.val); this.renderOverlay(); break;
@@ -1207,7 +1220,9 @@ export class App {
       case 'begin': {
         const m = missionById(this.select.missionId);
         const players = Array.from({ length: this.select.count }, (_, i) => this.select.players[i]?.trim() || `Player ${i + 1}`);
-        this.startDesign(defaultDesign(m, this.select.difficulty), this.select.team, players);
+        const nd = defaultDesign(m, this.select.difficulty);
+        if (this.select.objectiveId) nd.objectiveId = this.select.objectiveId;
+        this.startDesign(nd, this.select.team, players);
         this.render();
         break;
       }

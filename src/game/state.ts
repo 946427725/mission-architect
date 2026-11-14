@@ -33,6 +33,7 @@ export interface Design {
   rocketId: string;
   dsnDish: 34 | 70;
   dsnHours: number;
+  objectiveId?: string;
   programEvent?: ProgramEvent;
 }
 
@@ -61,6 +62,7 @@ export function defaultDesign(m: MissionDef, difficulty: Difficulty): Design {
     rocketId: m.defaults.rocketId,
     dsnDish: m.defaults.dsnDish ?? 34,
     dsnHours: m.defaults.dsnHours ?? 8,
+    objectiveId: m.objectives[0].id,
   };
 }
 

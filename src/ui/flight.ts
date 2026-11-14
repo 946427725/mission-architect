@@ -12,6 +12,7 @@ import { UNITS_PER_AU } from '../scene/solarSystem';
 import type { App } from './app';
 import { $, esc } from './dom';
 import { sound } from './sound';
+import { LANDINGS, POWER } from '../data/parts';
 
 const FRAME_AU: Record<string, number> = { mars: 2.3, jupiter: 6.8, pluto: 44 };
 
@@ -53,6 +54,11 @@ export class FlightPlayer {
   stop() {
     this.stopped = true;
     sound.droneStop();
+    const cd = $('#countdown');
+    if (cd.classList.contains('edl')) {
+      cd.className = '';
+      cd.innerHTML = '';
+    }
     $('#hud').innerHTML = '';
     $('#hud').className = '';
   }
@@ -76,15 +82,45 @@ export class FlightPlayer {
         <div class="hud-grid">
           <div><i>Date</i><b id="h-date">-</b></div>
           <div><i>Mission time</i><b id="h-met">-</b></div>
-          <div><i>From Sun</i><b id="h-sun">-</b></div>
-          <div><i>From Earth</i><b id="h-earth">-</b></div>
+          <div><i>Distance from Sun</i><b id="h-sun">-</b></div>
+          <div><i>Radio delay to Earth</i><b id="h-earth">-</b></div>
+          <div><i>Power now</i><b id="h-power">-</b></div>
+          <div><i>Science returned</i><b id="h-sci">0</b></div>
         </div>
         <div class="hud-phase" id="h-phase">Launch</div>
         <div class="hud-ctrl"><div class="speed" role="group" aria-label="Playback speed">
           ${[1, 2, 4].map((s) => `<button class="${this.speed === s ? 'on' : ''}" data-act="speed" data-val="${s}">${s}×</button>`).join('')}</div>
           <button class="btn small ghost" data-act="skip">Skip to results</button></div>
       </div>
-      <div class="feed" id="h-feed" aria-live="polite"></div>`;
+      <div class="feed" id="h-feed" aria-live="polite"></div>
+      <div class="flash" id="h-flash"></div>
+      ${this.journeyHTML()}`;
+  }
+
+  /** Bottom progress bar: launch -> (flyby) -> arrival -> end of science phase, with event pins. */
+  private journeyHTML(): string {
+    const d = this.app.design!;
+    const tr = d.transfer!;
+    const m = missionOf(d);
+    const L = tr.launchJD;
+    const end = tr.arriveJD + m.primaryDays;
+    const pos = (jd: number) => Math.min(100, Math.max(0, ((jd - L) / (end - L)) * 100));
+    const pins = this.sim.events
+      .filter((e) => e.phase !== 'launch' && e.phase !== 'end' && e.title !== 'Trajectory correction 1')
+      .map((e, i) => `<i class="j-pin ${e.tone}" data-pin="${i}" style="left:${pos(e.jd)}%" title="${esc(e.title)}"></i>`)
+      .join('');
+    const target = BODIES[m.target].name;
+    return `<div class="journey" aria-hidden="true">
+      <span class="j-end">Earth</span>
+      <div class="j-track">
+        <i class="j-fill" id="j-fill"></i>
+        ${tr.flyby ? `<span class="j-mark" style="left:${pos(tr.flyby.jd)}%">Jupiter</span>` : ''}
+        <span class="j-mark arrive" style="left:${pos(tr.arriveJD)}%">${target}</span>
+        ${pins}
+        <b class="j-craft" id="j-craft"></b>
+      </div>
+      <span class="j-end">${m.type === 'flyby' ? 'Data home' : 'Science done'}</span>
+    </div>`;
   }
 
   private updateHUD() {
@@ -102,8 +138,24 @@ export class FlightPlayer {
     set('h-date', formatJD(this.jd));
     const met = this.jd - tr.launchJD;
     set('h-met', met < 365 ? `Day ${Math.floor(met)}` : `Year ${(met / 365.25).toFixed(1)}`);
-    set('h-sun', `${rSun.toFixed(2)} AU`);
-    set('h-earth', `${rEarth.toFixed(2)} AU`);
+    const mkm = (au: number) => (au * AU) / 1e6;
+    set('h-sun', `${mkm(rSun) >= 1000 ? (mkm(rSun) / 1000).toFixed(2) + ' billion' : Math.round(mkm(rSun)) + ' million'} km`);
+    const delayMin = (rEarth * AU) / 299792.458 / 60;
+    set('h-earth', delayMin < 1 ? `${Math.max(0, Math.round(delayMin * 60))} s` : delayMin < 120 ? `${delayMin.toFixed(1)} min` : `${(delayMin / 60).toFixed(1)} hours`);
+    const pw = POWER.find((x) => x.id === d.powerId)!;
+    const yrs = Math.max(0, (this.jd - tr.launchJD) / 365.25);
+    let watts = pw.kind === 'solar' ? (pw.watts / Math.max(0.3, rSun * rSun)) * Math.pow(1 - pw.decayPerYear, yrs) : pw.watts * Math.pow(1 - pw.decayPerYear, yrs);
+    if (pw.kind === 'solar' && missionOf(d).type === 'lander' && this.jd >= tr.arriveJD) watts *= 0.25;
+    set('h-power', `${Math.round(watts)} W`);
+    const m = missionOf(d);
+    const sciFrac = this.jd <= tr.arriveJD ? 0 : Math.min(1, (this.jd - tr.arriveJD) / m.primaryDays);
+    set('h-sci', `${Math.round(this.sim.science * sciFrac)} / ${m.scienceTarget}`);
+    const end = tr.arriveJD + m.primaryDays;
+    const prog = Math.min(100, Math.max(0, ((this.jd - tr.launchJD) / (end - tr.launchJD)) * 100));
+    const fill = document.getElementById('j-fill');
+    if (fill) fill.style.width = `${prog}%`;
+    const craft = document.getElementById('j-craft');
+    if (craft) craft.style.left = `${prog}%`;
     set('h-phase', this.jd < tr.arriveJD ? (tr.flyby && this.jd < tr.flyby.jd ? 'Cruise to Jupiter' : `Cruise to ${BODIES[missionOf(d).target].name}`) : 'Science operations');
   }
 
@@ -114,6 +166,16 @@ export class FlightPlayer {
     card.className = `ev ${ev.tone}`;
     card.innerHTML = `<div class="ev-date">${formatJD(ev.jd)}</div><b>${esc(ev.title)}</b><p>${esc(ev.text)}</p>${ev.saved ? `<span class="saved">Saved by: ${esc(ev.saved)}</span>` : ''}`;
     feed.prepend(card);
+    const pinIdx = this.sim.events.filter((e) => e.phase !== 'launch' && e.phase !== 'end' && e.title !== 'Trajectory correction 1').indexOf(ev);
+    if (pinIdx >= 0) document.querySelector(`.j-pin[data-pin="${pinIdx}"]`)?.classList.add('hit');
+    if (ev.tone === 'critical') {
+      const fl = document.getElementById('h-flash');
+      if (fl) {
+        fl.classList.remove('on');
+        void fl.offsetWidth;
+        fl.classList.add('on');
+      }
+    }
     if (ev.phase !== 'launch' && ev.phase !== 'end') {
       if (ev.tone === 'critical') sound.alarm();
       else if (ev.tone === 'bad') sound.bad();
@@ -156,7 +218,13 @@ export class FlightPlayer {
         nj = Math.max(this.jd, ev.jd);
         this.next++;
         this.showEvent(ev);
-        const hold = ev.tone === 'critical' ? 3600 : ev.phase === 'end' ? 2200 : ev.tone === 'info' ? 1700 : 2400;
+        // hold long enough to read the card (~4 words per second)
+        const words = ev.text.split(/\s+/).length;
+        let hold = ev.phase === 'end' ? 2200 : Math.min(5500, Math.max(ev.tone === 'info' ? 1800 : 2400, words * 230)) + (ev.tone === 'critical' ? 800 : 0);
+        if (ev.title === 'Seven minutes of terror' && m.type === 'lander') {
+          const nextEv = this.sim.events[this.next];
+          hold = this.edl(nextEv && nextEv.tone === 'critical' ? 'Signal lost' : 'Touchdown') * this.speed + 400;
+        }
         this.pauseUntil = now + hold / this.speed;
         if (ev.phase === 'end' || ev.tone === 'critical') this.endAfterPause = ev.phase === 'end' || this.isTerminal(ev);
       }
@@ -166,6 +234,35 @@ export class FlightPlayer {
     this.app.view.setCraftAt(Math.min(this.jd, tr.arriveJD));
     this.updateHUD();
     requestAnimationFrame((t) => this.tick(t));
+  }
+
+  /** Mars entry, descent and landing in four beats. Returns its duration in ms. */
+  private edl(final: string): number {
+    const el = $('#countdown');
+    const d = this.app.design!;
+    const landing = LANDINGS.find((l) => l.id === d.landingId)!;
+    const system = landing.id === 'airbags' ? 'Airbags' : landing.id === 'retro' ? 'Retro rockets' : 'Sky crane';
+    const beats = [`Entry ${this.app.ev!.entrySpeed!.toFixed(1)} km/s`, 'Parachute', system, final];
+    const step = 1000 / this.speed;
+    el.className = 'show edl';
+    beats.forEach((b, i) =>
+      setTimeout(() => {
+        if (this.stopped) return;
+        el.innerHTML = `<div class="cd-ring"></div><div class="cd-num word ${i === 3 ? (final === 'Touchdown' ? 'final' : 'lost') : ''}">${esc(b)}</div><div class="cd-label">Seven minutes of terror · ${i + 1} / 4</div>`;
+        if (i < 3) sound.countBeep(3);
+        else if (final === 'Touchdown') sound.go();
+        else sound.alarm();
+      }, i * step),
+    );
+    setTimeout(() => {
+      if (!el.classList.contains('edl')) return;
+      el.classList.add('out');
+      setTimeout(() => {
+        el.className = '';
+        el.innerHTML = '';
+      }, 600);
+    }, 4 * step + 250 / this.speed);
+    return 4 * step + 250 / this.speed;
   }
 
   private isTerminal(ev: SimEvent) {

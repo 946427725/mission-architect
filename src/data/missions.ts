@@ -25,6 +25,15 @@ export interface NasaReference {
 
 export type MissionType = 'lander' | 'orbiter' | 'flyby';
 
+/** A player-chosen science goal: instruments that serve it count more. */
+export interface Objective {
+  id: string;
+  name: string;
+  desc: string;
+  weights: Record<string, number>; // instrument id -> multiplier (default 1)
+  needsOrbit?: string; // orbiter: an orbit this goal depends on
+}
+
 export interface MissionDef {
   id: string;
   name: string;
@@ -49,6 +58,7 @@ export interface MissionDef {
   grids: Partial<Record<'direct' | 'jga', GridSpec>>;
   powerIds: string[];
   instruments: Instrument[];
+  objectives: Objective[];
   defaults: {
     powerId: string;
     instruments: string[];
@@ -105,6 +115,11 @@ export const MISSIONS: MissionDef[] = [
       { id: 'moxie', name: 'Oxygen-from-air experiment', analog: 'MOXIE', desc: 'Makes breathable oxygen from Martian CO₂. Hungry for power.', mass: 17, power: 300, costM: 50, data: 1, science: 12 },
       { id: 'sampler', name: 'Sample caching system', analog: 'Perseverance sampling system', desc: 'Drills and seals rock cores for a future return to Earth. Huge science, huge mass.', mass: 45, power: 40, costM: 250, data: 5, science: 35 },
       { id: 'heli', name: 'Scout helicopter', analog: 'Ingenuity', desc: 'First aircraft on another world. Scouts routes ahead of the rover.', mass: 2, power: 10, costM: 85, data: 30, science: 12, outreach: true },
+    ],
+    objectives: [
+      { id: 'life', name: 'Search for ancient life', desc: 'Find chemical traces that microbes may have left in old lake beds.', weights: { sherloc: 1.5, pixl: 1.4, sampler: 1.4, supercam: 1.2, rimfax: 0.8, meda: 0.5, moxie: 0.5 } },
+      { id: 'humans', name: 'Prepare for astronauts', desc: 'Learn what future crews need: weather, radiation, buried ice and oxygen.', weights: { meda: 2, moxie: 2, rimfax: 1.4, heli: 1.2, supercam: 0.8, pixl: 0.6, sherloc: 0.6, sampler: 0.6 } },
+      { id: 'water', name: "Trace Mars' lost water", desc: 'Read the history of rivers and lakes in the rock layers.', weights: { rimfax: 1.8, supercam: 1.3, mastcam: 1.2, pixl: 1.1, moxie: 0.4 } },
     ],
     defaults: { powerId: 'solar-s', instruments: ['mastcam', 'supercam'], antennaId: 'hga15', txId: 'tx12', propellantKg: 70, landingId: 'airbags', rocketId: 'falcon9' },
     nasa: {
@@ -165,6 +180,11 @@ export const MISSIONS: MissionDef[] = [
       { id: 'particles', name: 'Particle detectors', analog: 'JADE + JEDI', desc: 'Samples the charged particles that power the auroras.', mass: 30, power: 30, costM: 45, data: 120, science: 16 },
       { id: 'waves', name: 'Radio & plasma waves', analog: 'Juno Waves', desc: 'Listens to the radio "sounds" of the magnetosphere.', mass: 8, power: 10, costM: 20, data: 40, science: 10 },
     ],
+    objectives: [
+      { id: 'interior', name: "What's inside Jupiter?", desc: 'Measure the water deep below the clouds and whether Jupiter has a solid core.', weights: { mwr: 1.5, grav: 1.6, mag: 1.3, cam: 0.7, jiram: 0.9, uvs: 0.6, particles: 0.7, waves: 0.7 } },
+      { id: 'aurora', name: 'The giant auroras', desc: 'Find out what powers the biggest auroras in the solar system.', weights: { uvs: 1.7, particles: 1.6, waves: 1.5, jiram: 1.3, mag: 1.2, mwr: 0.6, grav: 0.5, cam: 0.9 } },
+      { id: 'moons', name: 'The icy moons', desc: 'Fly past Europa and Ganymede, where oceans may hide under the ice.', weights: { cam: 1.6, jiram: 1.5, uvs: 1.1, mag: 1.2, particles: 0.9, mwr: 0.5, grav: 0.6, waves: 0.8 }, needsOrbit: 'tour' },
+    ],
     defaults: { powerId: 'solar-l', instruments: ['mwr', 'mag', 'cam'], antennaId: 'hga21', txId: 'tx25', propellantKg: 700, orbitId: 'polar53', rocketId: 'falconheavy', shieldId: 'light' },
     nasa: {
       name: 'Juno',
@@ -224,6 +244,11 @@ export const MISSIONS: MissionDef[] = [
       { id: 'swap', name: 'Solar wind analyser', analog: 'SWAP', desc: 'How does Pluto interact with the solar wind?', mass: 3.3, power: 2.3, costM: 12, data: 1, science: 8 },
       { id: 'pepssi', name: 'Energetic particle sensor', analog: 'PEPSSI', desc: 'Detects atoms escaping from Pluto\'s atmosphere.', mass: 1.5, power: 2.5, costM: 12, data: 1, science: 8 },
       { id: 'sdc', name: 'Student dust counter', analog: 'Venetia Burney SDC', desc: 'Built by university students! Counts dust grains across the whole solar system.', mass: 1.9, power: 5, costM: 5, data: 0.2, science: 6, outreach: true },
+    ],
+    objectives: [
+      { id: 'geology', name: "Map Pluto's surface", desc: 'Mountains, glaciers and craters: what shapes a world this cold?', weights: { lorri: 1.6, ralph: 1.5, rex: 0.8, alice: 0.8, swap: 0.5, pepssi: 0.5, sdc: 0.8 } },
+      { id: 'atmosphere', name: 'The escaping atmosphere', desc: "How fast is Pluto's thin nitrogen air leaking into space?", weights: { alice: 1.8, rex: 1.7, pepssi: 1.5, swap: 1.4, ralph: 0.9, lorri: 0.7, sdc: 0.7 } },
+      { id: 'kuiper', name: 'The Kuiper Belt', desc: 'Pluto is one of thousands of icy worlds out here. Study the whole region.', weights: { sdc: 2, lorri: 1.4, ralph: 1.1, alice: 0.9, rex: 0.9, swap: 0.9, pepssi: 0.9 } },
     ],
     defaults: { powerId: 'gphs', instruments: ['lorri', 'ralph'], antennaId: 'hga21', txId: 'tx12', propellantKg: 60, rocketId: 'atlasv551s48', dsnDish: 70, dsnHours: 8 },
     nasa: {

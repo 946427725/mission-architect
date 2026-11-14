@@ -567,16 +567,33 @@ body[data-screen='flight'] #topbar .meters { display: none; }
 .enter .star.on:nth-child(1) { animation-delay: 1.15s; } .enter .star.on:nth-child(2) { animation-delay: 1.3s; } .enter .star.on:nth-child(3) { animation-delay: 1.45s; }
 @keyframes starIn { from { transform: scale(2.4) rotate(-40deg); opacity: 0; } }
 .grade {
-  position: absolute; right: 40px; top: 26px; width: 150px; height: 150px; border-radius: 50%;
-  display: grid; place-items: center; font: 900 74px var(--display); font-stretch: 125%; line-height: 1;
-  border: 4px double currentColor; color: var(--nogo); transform: rotate(-12deg); opacity: 0.88;
+  position: absolute; right: 40px; top: 30px; padding: 12px 18px; border: 4px double currentColor; border-radius: 6px;
+  font: 900 30px var(--display); font-stretch: 125%; letter-spacing: 0.06em; line-height: 1; color: var(--nogo);
+  transform: rotate(-10deg); opacity: 0.85; pointer-events: none;
 }
-.grade::before { content: attr(data-word); position: absolute; top: 20px; font: 700 10px var(--mono); letter-spacing: 0.2em; }
-.grade::after { content: 'REVIEW BOARD'; position: absolute; bottom: 20px; font: 600 8px var(--mono); letter-spacing: 0.16em; }
+.grade::after { content: 'MISSION REVIEW BOARD'; display: block; margin-top: 6px; font: 600 8.5px var(--mono); letter-spacing: 0.22em; text-align: center; }
 .report-head.success .grade { color: var(--go); }
 .report-head.partial .grade { color: var(--caution); }
 .enter .grade { animation: stamp 0.5s cubic-bezier(0.5, 0, 0.75, 0) 0.7s both; }
-@keyframes stamp { from { transform: rotate(-30deg) scale(2.6); opacity: 0; } 85% { transform: rotate(-12deg) scale(0.96); opacity: 0.95; } to { transform: rotate(-12deg) scale(1); opacity: 0.88; } }
+@keyframes stamp { from { transform: rotate(-26deg) scale(2.6); opacity: 0; } 85% { transform: rotate(-10deg) scale(0.96); opacity: 0.95; } to { transform: rotate(-10deg) scale(1); opacity: 0.85; } }
+.headline { margin: -6px 0 14px; max-width: 60ch; font-size: 16px; line-height: 1.45; color: var(--ink); }
+.btn.fix-step { margin-bottom: 18px; background: var(--foil); border-color: var(--foil); color: var(--ink); }
+.btn.fix-step::after { background: var(--ink); }
+.btn.fix-step:hover { color: var(--paper); }
+.grade-row { align-items: center; flex-wrap: wrap; }
+.grade-row .sci-goal { flex: 1; min-width: 220px; padding-top: 0; }
+.whatif { list-style: none; padding: 0; margin: 0 0 10px; display: grid; gap: 6px; counter-reset: w; }
+.whatif li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 12px; padding: 10px 12px; background: var(--paper-2); }
+.whatif li div { display: grid; gap: 2px; min-width: 0; }
+.whatif li b { font-size: 13px; }
+.whatif li span { font: 11px var(--mono); color: var(--ink-2); }
+.whatif li em { font-style: normal; font-weight: 700; text-transform: uppercase; }
+.whatif li em.success { color: var(--go); }
+.whatif li em.partial { color: var(--caution); }
+.whatif li strong { font: 700 18px var(--display); font-stretch: 112%; color: var(--go); }
+.enter .whatif li { animation: rise 0.6s var(--ease) both; }
+.enter .whatif li:nth-child(1) { animation-delay: 1.15s; } .enter .whatif li:nth-child(2) { animation-delay: 1.25s; } .enter .whatif li:nth-child(3) { animation-delay: 1.35s; }
+.report-actions { position: sticky; bottom: 0; background: var(--paper); border-top: 1px solid var(--ink); z-index: 2; }
 .report-grid { display: grid; grid-template-columns: 1fr 1fr; }
 .report-grid section { padding: 20px 30px 24px; border-bottom: 1px solid var(--rule); min-width: 0; }
 .report-grid section:nth-child(odd):not(.compare) { border-right: 1px solid var(--rule); }
@@ -783,6 +800,39 @@ body[data-screen='flight'] #topbar .meters { display: none; }
 #modal-root .modal { z-index: 90; }
 .m-label > span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .field .seg button { padding: 7px 8px; }
+.objectives { margin: 18px 28px 0; }
+.objectives h4 { font: 500 10.5px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); margin-bottom: 8px; }
+.obj-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.obj { position: relative; text-align: left; background: var(--paper); border: 1px solid var(--rule); padding: 12px 14px; display: grid; gap: 4px; transition: border-color 0.2s, background 0.35s var(--ease), color 0.35s, transform 0.3s var(--ease); }
+.obj:hover { border-color: var(--ink); transform: translateY(-2px); }
+.obj b { font: 800 14px var(--display); font-stretch: 112%; text-transform: uppercase; line-height: 1.1; }
+.obj span { font-size: 12px; color: var(--ink-2); }
+.obj .obj-n { font: 600 10px var(--mono); color: var(--foil-deep); }
+.obj.sel { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.obj.sel span { color: #b9bcb6; }
+.obj.sel .obj-n { color: var(--foil); }
+.obj-chips .chip { font-size: 11.5px; }
+/* flight: journey bar, critical flash, landing sequence */
+.journey { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); width: min(520px, calc(100vw - 820px)); min-width: 300px; z-index: 12; display: flex; align-items: center; gap: 10px; color: var(--hud); font: 600 10px var(--mono); letter-spacing: 0.1em; text-transform: uppercase; animation: rise 0.8s var(--ease) 0.4s both; }
+.j-end { flex: none; color: var(--hud-2); }
+.j-track { position: relative; flex: 1; height: 4px; background: var(--hud-rule); }
+.j-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--foil); }
+.j-craft { position: absolute; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; background: var(--hud); border: 2px solid var(--foil); border-radius: 50%; box-shadow: 0 0 12px var(--foil); }
+.j-mark { position: absolute; bottom: 10px; transform: translateX(-50%); font-size: 9px; color: var(--hud-2); white-space: nowrap; }
+.j-mark::after { content: ''; position: absolute; left: 50%; top: 13px; width: 1px; height: 9px; background: var(--hud-2); }
+.j-mark.arrive { color: var(--hud); }
+.j-pin { position: absolute; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; background: var(--hud-2); transform: rotate(45deg) scale(0); transition: transform 0.4s var(--ease); }
+.j-pin.hit { transform: rotate(45deg) scale(1); }
+.j-pin.good { background: var(--go); }
+.j-pin.bad { background: var(--foil); }
+.j-pin.critical { background: var(--nogo); }
+.flash { position: fixed; inset: 0; pointer-events: none; z-index: 11; opacity: 0; box-shadow: inset 0 0 160px 40px rgba(211, 38, 58, 0.75); }
+.flash.on { animation: flash 1.4s ease-out; }
+@keyframes flash { 0% { opacity: 0; } 12% { opacity: 1; } 30% { opacity: 0.4; } 45% { opacity: 0.9; } 100% { opacity: 0; } }
+#countdown.edl .cd-num.word { font-size: clamp(40px, 7.5vw, 110px); color: var(--hud); text-transform: uppercase; }
+#countdown.edl .cd-num.final { color: var(--go); }
+#countdown.edl .cd-num.lost { color: var(--nogo); }
+@media (max-width: 1300px) { .journey { width: min(420px, calc(100vw - 64px)); bottom: auto; top: calc(var(--top) + 10px); left: 28px; transform: none; } }
 /* ------------------------------------------------------------ responsive */
 @media (max-width: 1280px) {
   .brand-sub { display: none; }
@@ -812,15 +862,16 @@ body[data-screen='flight'] #topbar .meters { display: none; }
   .tiles.three { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   #frame { display: none; }
   #craft-card { top: calc(var(--top) + 8px); bottom: auto; right: 8px; width: 46vw; height: calc(46vh - var(--top) - 16px); }
-  .mission-cards, .report-grid, .cmp-cols, .select-row, .features { grid-template-columns: 1fr; }
+  .mission-cards, .report-grid, .cmp-cols, .select-row, .features, .obj-tiles { grid-template-columns: 1fr; }
   .mission-card { border-right: 0; border-bottom: 1px solid var(--rule); min-height: 0; }
   .report-grid section:nth-child(odd):not(.compare) { border-right: 0; }
   .polls { grid-template-columns: repeat(3, 1fr); }
   .feed { width: calc(100% - 32px); right: 16px; }
   .hud-main { width: calc(100% - 32px); left: 16px; bottom: 16px; }
-  .grade { width: 100px; height: 100px; font-size: 48px; right: 18px; top: 18px; }
-  .grade::before, .grade::after { display: none; }
-  .report-head h1 { max-width: 100%; padding-right: 96px; }
+  .journey { display: none; }
+  .grade { position: static; display: inline-block; margin: 0 0 12px; font-size: 20px; transform: rotate(-4deg); }
+  .grade::after { display: none; }
+  .report-head h1 { max-width: 100%; }
 }
 @media (max-width: 520px) {
   .opts.two { grid-template-columns: 1fr; }
