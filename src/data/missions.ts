@@ -212,8 +212,8 @@ export const MISSIONS: MissionDef[] = [
     maxTofDays: 16 * 365.25,
     scienceTarget: 100,
     grids: {
-      direct: { kind: 'direct', target: 'pluto', launchStartJD: START, launchEndJD: isoToJD('2036-12-31'), nx: 110, tofMinDays: 5 * 365.25, tofMaxDays: 20 * 365.25, ny: 75 },
-      jga: { kind: 'jga', target: 'pluto', launchStartJD: START, launchEndJD: isoToJD('2036-12-31'), nx: 110, tofMinDays: 5 * 365.25, tofMaxDays: 18 * 365.25, ny: 65 },
+      direct: { kind: 'direct', target: 'pluto', launchStartJD: START, launchEndJD: isoToJD('2034-01-01'), nx: 110, tofMinDays: 5 * 365.25, tofMaxDays: 20 * 365.25, ny: 75 },
+      jga: { kind: 'jga', target: 'pluto', launchStartJD: START, launchEndJD: isoToJD('2034-01-01'), nx: 110, tofMinDays: 5 * 365.25, tofMaxDays: 18 * 365.25, ny: 65 },
     },
     powerIds: ['solar-l', 'mmrtg', 'gphs'],
     instruments: [
@@ -238,12 +238,12 @@ export const MISSIONS: MissionDef[] = [
         ['Data', '≈50 Gbit took ~15 months to downlink at 1-2 kbit/s'],
         ['Cost', '≈$700 million'],
       ],
-      lesson: 'The Jupiter gravity assist cut 3 years off the trip. Solar power was impossible: at Pluto sunlight is ~1,000× weaker.',
+      lesson: 'The Jupiter gravity assist cut 3 years off the trip. Solar power was impossible: Pluto was 33 AU from the Sun in 2015, where sunlight is ~1,100× weaker than at Earth.',
       url: 'https://science.nasa.gov/mission/new-horizons/',
     },
     hints: {
       trajectory: 'Try both routes! A direct shot needs enormous launch energy. A Jupiter gravity assist steals speed from Jupiter - but only works when Jupiter is in the right place.',
-      spacecraft: 'Solar panels at Pluto make ~1/1,500 of their Earth power. RTG output also decays every year of the long cruise.',
+      spacecraft: 'In the 2040s Pluto is ~40 AU from the Sun: solar panels there make ~1/1,600 of their Earth power. RTG output also decays every year of the long cruise.',
       science: 'Every gram counts: a lighter probe can be launched faster. Pick the instruments that give the most science per kg.',
       comms: "At 5 billion km your data trickles home at ~1 kbit/s. Without enough antenna, transmitter and Deep Space Network time, you'll never get your photos.",
       launch: 'Extreme launch energies need a kick stage. The lighter the probe, the faster you can throw it.',

@@ -1,64 +1,108 @@
+// Game balance: real-mission-like designs must be flyable, and every mission
+// must have more than one winning design ("no single perfect solution").
 import { describe, expect, it } from 'vitest';
 import { missionById } from '../src/data/missions';
 import { autoPropellant, evaluate } from '../src/game/evaluate';
+import { ROCKETS, payloadAt } from '../src/data/rockets';
 import { simulate } from '../src/game/simulate';
 import { Design, defaultDesign } from '../src/game/state';
-import { computeGrid, directTransfer, transferAt } from '../src/physics/porkchop';
+import { computeGrid, directTransfer, jgaTransfer, transferAt } from '../src/physics/porkchop';
 import { isoToJD } from '../src/physics/time';
 
-const show = (label: string, d: Design) => {
+const fly = (d: Design) => {
   d.propellantKg = autoPropellant(d);
   const ev = evaluate(d);
-  const fails = ev.checks.filter((c) => c.status !== 'ok').map((c) => `${c.status}:${c.id}: ${c.detail}`);
-  const sim = ev.launchable ? simulate(d, ev, 42, false) : null;
-  console.log(
-    `\n== ${label}\n launch ${Math.round(ev.mass.launch)} kg cap ${Math.round(ev.mass.capacity ?? 0)} | power ${Math.round(ev.power.generated)}/${Math.round(ev.power.avgLoad)} W | dv ${(ev.dv.available * 1000).toFixed(0)}/${(ev.dv.required * 1000).toFixed(0)} | cost ${Math.round(ev.cost.total)}/${Math.round(ev.cost.cap)} | data ${(ev.data.fraction * 100).toFixed(0)}% | sci ${ev.science.potential.toFixed(0)} | ready ${ev.devYears.toFixed(1)}y`,
-    '\n ' + fails.join('\n '),
-    sim ? `\n => ${sim.outcome} score ${sim.score.total} ${sim.score.grade}` : '\n => NOT LAUNCHABLE',
-  );
-  return { ev, sim };
+  const fails = ev.checks.filter((c) => c.status === 'fail').map((c) => `${c.id}: ${c.detail}`);
+  // several seeds so one unlucky event does not decide the test
+  const sims = ev.launchable ? [1, 2, 3, 4, 5, 6].map((s) => simulate(d, ev, s, false)) : [];
+  const successes = sims.filter((s) => s.outcome === 'success').length;
+  return { ev, fails, successes };
 };
 
-describe('balance', () => {
-  it('Perseverance-like Mars design is launchable', () => {
-    const m = missionById('mars');
-    const d = defaultDesign(m, 'normal');
-    d.transfer = directTransfer('mars', isoToJD('2031-03-20'), 220);
-    Object.assign(d, { powerId: 'mmrtg', batteryId: 'bat-m', landingId: 'skycrane', rocketId: 'atlasv551', antennaId: 'hga15', avionicsId: 'dual', instruments: ['mastcam', 'supercam', 'pixl', 'sherloc', 'rimfax', 'meda', 'moxie', 'sampler', 'heli'] });
-    const { ev } = show('Perseverance-like', d);
-    const def = defaultDesign(m, 'normal');
-    def.transfer = directTransfer('mars', isoToJD('2028-12-10'), 220);
-    show('Mars default (2028)', def);
-    const small = defaultDesign(m, 'normal');
-    small.transfer = directTransfer('mars', isoToJD('2028-12-10'), 220);
-    Object.assign(small, { instruments: ['mastcam', 'supercam', 'pixl', 'sherloc', 'rimfax'], batteryId: 'bat-m' });
-    show('Mars small solar rover', small);
-    expect(ev.mass.launch).toBeGreaterThan(2500);
+describe('Mars: two different winning rovers', () => {
+  it('Perseverance-like (sky crane, MMRTG, 9 instruments) in the 2031 window', () => {
+    const d = defaultDesign(missionById('mars'), 'normal');
+    d.transfer = directTransfer('mars', isoToJD('2031-01-28'), 193);
+    Object.assign(d, { powerId: 'mmrtg', batteryId: 'bat-m', landingId: 'skycrane', rocketId: 'atlasv551', antennaId: 'hga15', avionicsId: 'single', instruments: ['mastcam', 'supercam', 'pixl', 'sherloc', 'rimfax', 'meda', 'moxie', 'sampler', 'heli'] });
+    const r = fly(d);
+    expect(r.fails).toEqual([]);
+    expect(r.successes).toBeGreaterThanOrEqual(4);
   });
-
-  it('Juno-like Jupiter design', () => {
-    const m = missionById('jupiter');
-    const d = defaultDesign(m, 'normal');
-    d.transfer = directTransfer('jupiter', isoToJD('2030-01-28'), 900);
-    Object.assign(d, { powerId: 'solar-l', shieldId: 'heavy', rocketId: 'falconheavy', antennaId: 'hga21', txId: 'tx25', dsnDish: 70, avionicsId: 'dual', instruments: ['mwr', 'mag', 'grav', 'cam', 'jiram', 'uvs', 'particles', 'waves'], propellantKg: 900, orbitId: 'polar14' });
-    show('Juno-like', d);
-    const def = defaultDesign(m, 'normal');
-    def.transfer = directTransfer('jupiter', isoToJD('2030-01-28'), 900);
-    show('Jupiter default', def);
+  it('solar rover on retro rockets (2028-29 window) is launchable', () => {
+    const d = defaultDesign(missionById('mars'), 'normal');
+    d.transfer = directTransfer('mars', isoToJD('2028-12-28'), 215);
+    Object.assign(d, { instruments: ['mastcam', 'supercam', 'pixl', 'sherloc'], batteryId: 'bat-l', powerId: 'solar-s', landingId: 'retro' });
+    const r = fly(d);
+    expect(r.fails).toEqual([]);
   });
+});
 
-  it('New Horizons-like Pluto design', async () => {
+describe('Jupiter: two different winning orbiters', () => {
+  it('Juno-like (giant solar, heavy vault, 14-day orbit)', () => {
+    const d = defaultDesign(missionById('jupiter'), 'normal');
+    d.transfer = directTransfer('jupiter', isoToJD('2031-02-24'), 767);
+    Object.assign(d, { powerId: 'solar-l', shieldId: 'heavy', rocketId: 'falconheavy', antennaId: 'hga21', txId: 'tx25', dsnDish: 70, avionicsId: 'dual', instruments: ['mwr', 'mag', 'grav', 'cam', 'jiram', 'uvs', 'particles'], orbitId: 'polar14' });
+    const r = fly(d);
+    expect(r.fails).toEqual([]);
+    expect(r.successes).toBeGreaterThanOrEqual(4);
+  });
+  it('nuclear moon-tour orbiter (2x RTG, heavy vault)', () => {
+    const d = defaultDesign(missionById('jupiter'), 'normal');
+    d.transfer = directTransfer('jupiter', isoToJD('2031-02-24'), 767);
+    Object.assign(d, { powerId: 'gphs2', shieldId: 'light', rocketId: 'falconheavy', antennaId: 'hga21', txId: 'tx25', dsnDish: 70, avionicsId: 'dual', instruments: ['mag', 'cam', 'jiram', 'uvs'], orbitId: 'tour' });
+    const r = fly(d);
+    expect(r.fails).toEqual([]);
+  });
+});
+
+describe('Pluto: gravity assist works, direct does not', () => {
+  it('New Horizons-like probe via Jupiter (2030 launch)', async () => {
     const m = missionById('pluto');
+    const g = await computeGrid({ ...m.grids.jga!, launchStartJD: isoToJD('2029-10-01'), launchEndJD: isoToJD('2030-05-01'), nx: 40 });
+    let best: { tr: ReturnType<typeof transferAt>; score: number } | null = null;
+    for (let ix = 0; ix < g.spec.nx; ix++)
+      for (let iy = 0; iy < g.spec.ny; iy++) {
+        const c3 = g.c3[iy * g.spec.nx + ix];
+        const tof = g.spec.tofMinDays + ((g.spec.tofMaxDays - g.spec.tofMinDays) * iy) / (g.spec.ny - 1);
+        if (!isFinite(c3) || tof > m.maxTofDays) continue;
+        const score = c3 + 40 * g.flybyDv[iy * g.spec.nx + ix] + (tof / 365.25) * 3;
+        if (!best || score < best.score) best = { tr: transferAt(g, ix, iy), score };
+      }
     const d = defaultDesign(m, 'normal');
-    const g = await computeGrid({ ...m.grids.jga!, launchStartJD: isoToJD('2030-06-01') });
-    const tr = transferAt(g, g.best!.ix, g.best!.iy);
-    console.log('JGA best launch', tr && new Date((tr.launchJD - 2440587.5) * 864e5).toISOString().slice(0, 10), 'tof y', tr && (tr.tofDays / 365.25).toFixed(1));
-    d.transfer = tr;
     d.trajectoryKind = 'jga';
-    Object.assign(d, { powerId: 'gphs', rocketId: 'atlasv551s48', antennaId: 'hga21', txId: 'tx12', dsnDish: 70, avionicsId: 'dual', instruments: ['lorri', 'ralph', 'alice', 'rex', 'swap', 'pepssi', 'sdc'], propellantKg: 77, dsnHours: 24 });
-    show('NH-like JGA ' + (tr ? tr.c3.toFixed(1) : 'null'), d);
-    const def = defaultDesign(m, 'normal');
-    def.transfer = tr;
-    show('Pluto default', def);
+    d.transfer = best!.tr;
+    Object.assign(d, { powerId: 'gphs', rocketId: 'atlasv551s48', antennaId: 'hga21', txId: 'tx12', dsnDish: 70, dsnHours: 24, avionicsId: 'single', instruments: ['lorri', 'ralph', 'alice', 'rex', 'swap', 'pepssi', 'sdc'] });
+    const r = fly(d);
+    expect(r.fails).toEqual([]);
+  }, 60000);
+  it('no direct route in the game lets any rocket carry even a 450 kg probe', async () => {
+    const m = missionById('pluto');
+    const g = await computeGrid(m.grids.direct!);
+    let minC3 = Infinity;
+    let cells = 0;
+    for (let iy = 0; iy < g.spec.ny; iy++) {
+      const tof = g.spec.tofMinDays + ((g.spec.tofMaxDays - g.spec.tofMinDays) * iy) / (g.spec.ny - 1);
+      if (tof > m.maxTofDays) continue;
+      for (let ix = 0; ix < g.spec.nx; ix++) {
+        const c3 = g.c3[iy * g.spec.nx + ix];
+        if (!isFinite(c3)) continue;
+        cells++;
+        minC3 = Math.min(minC3, c3);
+      }
+    }
+    const best = Math.max(...ROCKETS.map((r) => payloadAt(r, minC3)));
+    console.log(`direct Pluto: ${cells} routes, cheapest C3 ${minC3.toFixed(0)}, best rocket lifts ${Math.round(best)} kg`);
+    expect(cells).toBeGreaterThan(100);
+    expect(best).toBeLessThan(450);
+  }, 60000);
+  it('solar power at Pluto fails with a clear explanation', () => {
+    const d = defaultDesign(missionById('pluto'), 'normal');
+    d.trajectoryKind = 'jga';
+    d.transfer = jgaTransfer('pluto', isoToJD('2006-01-19'), 405, 3058);
+    d.powerId = 'solar-l';
+    const ev = evaluate(d);
+    const power = ev.checks.find((c) => c.id === 'power')!;
+    console.log('PITCH QUOTE:', power.detail);
+    expect(power.status).toBe('fail');
   });
 });

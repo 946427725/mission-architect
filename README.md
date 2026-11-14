@@ -37,7 +37,7 @@ For judges, a fully public host is safest: on a laptop where you're logged in, r
 | Team play up to 4, roles, negotiation | Team mode: 4 roles, personal role goals, sign-off required, sign-offs reset on any change |
 | Random events / unexpected constraints | Dust storms, safe modes, engine valve anomaly (Juno), radiation, relay failure, budget cuts & cost overruns from NASA HQ |
 | Difficulty levels | Easy / Normal / Hard |
-| Post-mission analysis, mission report | "Why it turned out this way", event log, score breakdown, printable report |
+| Post-mission analysis, mission report | "Why it turned out this way", event log, score breakdown, "one change that would have saved it" |
 | Leaderboard, save/share/compare designs | Local leaderboard, share links that encode the whole design |
 | Educational value, simple explanations | Flight Director hints, glossary tooltips, every check explains the physics with numbers |
 

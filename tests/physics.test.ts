@@ -43,17 +43,21 @@ describe('Lambert solver', () => {
     expect(sol.v1[1]).toBeCloseTo(v, 3);
     expect(Math.abs(sol.v1[0])).toBeLessThan(1e-3);
   });
+});
 
-  it('matches Mars 2020 / Perseverance (launch 30 Jul 2020, land 18 Feb 2021)', () => {
+// Validation against real missions. These are the exact numbers quoted in the
+// game, README and pitch, so they are asserted tightly.
+describe('validation against real NASA missions', () => {
+  it('Mars 2020 / Perseverance (launch 30 Jul 2020, land 18 Feb 2021): C3 14.4 vs ~14.5 published', () => {
     const tr = directTransfer('mars', isoToJD('2020-07-30'), isoToJD('2021-02-18') - isoToJD('2020-07-30'))!;
-    // Published launch C3 for Mars 2020 was ~14-15 km^2/s^2
-    expect(tr.c3).toBeGreaterThan(11);
-    expect(tr.c3).toBeLessThan(18);
+    expect(tr.c3).toBeGreaterThan(13.9);
+    expect(tr.c3).toBeLessThan(14.9);
+    expect(Number(tr.c3.toFixed(1))).toBe(14.4);
     expect(tr.vinfArr).toBeGreaterThan(2);
-    expect(tr.vinfArr).toBeLessThan(4.5);
+    expect(tr.vinfArr).toBeLessThan(3.2);
   });
 
-  it('matches New Horizons (launch 19 Jan 2006, Jupiter 28 Feb 2007, Pluto 14 Jul 2015)', () => {
+  it('New Horizons (launch 19 Jan 2006, Jupiter 28 Feb 2007, Pluto 14 Jul 2015)', () => {
     const L = isoToJD('2006-01-19');
     const J = isoToJD('2007-02-28');
     const P = isoToJD('2015-07-14');
@@ -61,13 +65,18 @@ describe('Lambert solver', () => {
     const j = planetState('jupiter', J);
     const leg1 = lambert(e.r, j.r, (J - L) * DAY, MU_SUN)!;
     const c3 = norm(sub(leg1.v1, e.v)) ** 2;
-    // Published New Horizons launch C3: 157.75 km^2/s^2
-    expect(c3).toBeGreaterThan(140);
-    expect(c3).toBeLessThan(180);
-    const tr = jgaTransfer('pluto', L, J - L, P - J);
+    // Published launch C3: 157.75 km^2/s^2 -> engine 158.8
+    expect(Math.abs(c3 - 157.75)).toBeLessThan(2);
+    expect(Number(c3.toFixed(1))).toBe(158.8);
+    const tr = jgaTransfer('pluto', L, J - L, P - J)!;
     expect(tr).not.toBeNull();
-    // Real arrival speed relative to Pluto was ~13.8 km/s
-    expect(tr!.vinfArr).toBeGreaterThan(11);
-    expect(tr!.vinfArr).toBeLessThan(16);
+    // Real closest approach to Jupiter: ~32 Jupiter radii -> engine 32.6
+    expect(tr.flyby!.rpRadii).toBeGreaterThan(31);
+    expect(tr.flyby!.rpRadii).toBeLessThan(34);
+    expect(Number(tr.flyby!.rpRadii.toFixed(1))).toBe(32.6);
+    // Real Pluto encounter speed: ~13.8 km/s -> engine 13.79
+    expect(Math.abs(tr.vinfArr - 13.8)).toBeLessThan(0.2);
+    // Real flyby needed essentially no engine burn
+    expect(tr.flyby!.dv).toBeLessThan(0.1);
   });
 });

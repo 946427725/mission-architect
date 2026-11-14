@@ -210,7 +210,7 @@ export function evaluate(d: Design): Evaluation {
   costItems.push([`Deep Space Network (${d.dsnDish} m, ${d.dsnHours} h/day)`, DSN_COST[d.dsnDish] * d.dsnHours * sciYears]);
   if (d.programEvent?.costDeltaM) costItems.push([d.programEvent.title, d.programEvent.costDeltaM]);
   const total = costItems.reduce((s, [, v]) => s + v, 0);
-  const cap = m.budgetCapM * (easy ? 1.2 : 1) + (d.programEvent?.budgetDeltaM ?? 0);
+  const cap = m.budgetCapM * (easy ? 1.2 : d.difficulty === 'sandbox' ? 10 : 1) + (d.programEvent?.budgetDeltaM ?? 0);
 
   // ---------- checks ----------
   // trajectory

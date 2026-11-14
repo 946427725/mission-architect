@@ -29,7 +29,8 @@ export class FlightPlayer {
 
   constructor(private app: App) {
     const d = app.design!;
-    const seed = (hashString(encodeDesign(d)) ^ Math.imul(app.attempt, 2654435761)) >>> 0;
+    const seed = app.demoSeed !== null ? (app.demoSeed + app.attempt - 1) >>> 0 : (hashString(encodeDesign(d)) ^ Math.imul(app.attempt, 2654435761)) >>> 0;
+    this.speed = app.demoSpeed;
     this.sim = simulate(d, app.ev!, seed, app.team.enabled);
     app.sim = this.sim;
     this.jd = d.transfer!.launchJD;
@@ -80,7 +81,7 @@ export class FlightPlayer {
         </div>
         <div class="hud-phase" id="h-phase">Launch</div>
         <div class="hud-ctrl"><div class="speed" role="group" aria-label="Playback speed">
-          <button class="on" data-act="speed" data-val="1">1×</button><button data-act="speed" data-val="2">2×</button><button data-act="speed" data-val="4">4×</button></div>
+          ${[1, 2, 4].map((s) => `<button class="${this.speed === s ? 'on' : ''}" data-act="speed" data-val="${s}">${s}×</button>`).join('')}</div>
           <button class="btn small ghost" data-act="skip">Skip to results</button></div>
       </div>
       <div class="feed" id="h-feed" aria-live="polite"></div>`;

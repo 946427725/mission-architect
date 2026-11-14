@@ -1,7 +1,7 @@
 import { MissionDef, missionById } from '../data/missions';
 import { Transfer } from '../physics/porkchop';
 
-export type Difficulty = 'easy' | 'normal' | 'hard';
+export type Difficulty = 'easy' | 'normal' | 'hard' | 'sandbox';
 export type Tab = 'trajectory' | 'spacecraft' | 'science' | 'comms' | 'launch';
 export const TABS: Tab[] = ['trajectory', 'spacecraft', 'science', 'comms', 'launch'];
 

@@ -10,7 +10,9 @@ export interface PorkchopOverlay {
   maxTofDays: number;
   /** max C3 the chosen rocket can reach with the current launch mass */
   reachC3: number;
+  rocketName?: string;
   selected?: { launchJD: number; tofDays: number } | null;
+  selectedLabel?: string;
 }
 
 const PAD = { l: 44, r: 10, t: 10, b: 30 };
@@ -50,8 +52,8 @@ export class PorkchopView {
     this.c3Min = Math.max(0, Math.min(...finite));
     this.c3Max = this.c3Min * 3.2 + 25;
     this.heat = this.buildHeat();
-    this.canvas.addEventListener('mousemove', (e) => this.move(e));
-    this.canvas.addEventListener('mouseleave', () => {
+    this.canvas.addEventListener('pointermove', (e) => this.move(e));
+    this.canvas.addEventListener('pointerleave', () => {
       this.hover = null;
       this.draw();
       this.onLeave();
@@ -102,7 +104,7 @@ export class PorkchopView {
     return { x: PAD.l, y: PAD.t, w: w - PAD.l - PAD.r, h: h - PAD.t - PAD.b };
   }
 
-  private cellAt(e: MouseEvent) {
+  private cellAt(e: MouseEvent | PointerEvent) {
     const r = this.canvas.getBoundingClientRect();
     const p = this.plotRect();
     const x = (e.clientX - r.left - p.x) / p.w;
@@ -115,7 +117,7 @@ export class PorkchopView {
     return { ix, iy };
   }
 
-  private move(e: MouseEvent) {
+  private move(e: PointerEvent) {
     const c = this.cellAt(e);
     if (!c) {
       if (this.hover) {
@@ -219,6 +221,17 @@ export class PorkchopView {
       }
     ctx.stroke();
     ctx.lineWidth = 1;
+    if (this.overlay.rocketName && this.overlay.reachC3 > 0) {
+      ctx.font = '600 10px "IBM Plex Mono", monospace';
+      ctx.textAlign = 'right';
+      const label = `▢ ${this.overlay.rocketName} can reach inside the black line`;
+      const tw = ctx.measureText(label).width;
+      ctx.fillStyle = 'rgba(236,237,233,0.85)';
+      ctx.fillRect(p.x + p.w - tw - 10, p.y + 4, tw + 8, 15);
+      ctx.fillStyle = '#121314';
+      ctx.fillText(label, p.x + p.w - 6, p.y + 15);
+      ctx.textAlign = 'left';
+    }
 
     // axes
     ctx.strokeStyle = '#121314';
@@ -267,6 +280,13 @@ export class PorkchopView {
       ctx.arc(x, y, 3.5, 0, Math.PI * 2);
       ctx.fill();
       ctx.lineWidth = 1;
+      ctx.font = '700 10px "IBM Plex Mono", monospace';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#121314';
+      const tag = this.overlay.selectedLabel ?? 'YOU';
+      ctx.fillRect(x + 10, y - 8, ctx.measureText(tag).width + 8, 15);
+      ctx.fillStyle = '#ecede9';
+      ctx.fillText(tag, x + 14, y + 3);
     }
     // hover crosshair
     if (this.hover) {

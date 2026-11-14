@@ -70,7 +70,7 @@ export function renderReport(app: App): string {
       <section class="compare"><h3>You vs NASA: ${esc(m.nasa.name)}</h3>
         <div class="cmp-cols"><div><h4>Your mission</h4>${myRows.map(([k, v]) => `<div class="kvrow"><span>${k}</span><b>${esc(v)}</b></div>`).join('')}</div>
         <div><h4>${esc(m.nasa.name)}</h4>${m.nasa.facts.map(([k, v]) => `<div class="kvrow"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('')}</div></div>
-        <p class="lesson"><b>Lesson from the real mission:</b> ${esc(m.nasa.lesson)} <a href="${m.nasa.url}" target="_blank" rel="noopener">Learn more at NASA ↗</a></p>
+        <p class="lesson"><b>Lesson from the real mission:</b> ${esc(m.nasa.lesson)} <a href="${m.nasa.url}" target="_blank" rel="noopener">Learn more at NASA ↗</a> · <button class="link-btn inline" data-act="validation">How we validated the physics</button></p>
       </section>
 
       <section><h3>Leaderboard: ${esc(m.name)}</h3>
@@ -83,6 +83,7 @@ export function renderReport(app: App): string {
       <button class="btn" data-act="redesign">Improve the design</button>
       <button class="btn ghost" data-act="fly-again">Fly again (new luck)</button>
       <button class="btn ghost" data-act="share">Share design</button>
+      <button class="btn ghost" data-act="nasa-design-report">Try the NASA-style design</button>
       <button class="btn ghost" data-act="next-mission">Next: ${esc(nextMission.name)} →</button>
     </div>
   </div>`;

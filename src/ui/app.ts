@@ -12,11 +12,14 @@ import { PorkchopGrid, computeGrid, transferAt } from '../physics/porkchop';
 import { formatDuration, formatJD, formatJDShort } from '../physics/time';
 import { CraftPreview } from '../scene/preview';
 import { SolarSystemView } from '../scene/solarSystem';
-import { $, $$, countdown, esc, fmtInt, fmtKg, revLetter, toast, tween } from './dom';
+import { $, $$, countdown, esc, fmtInt, fmtKg, toast, tween } from './dom';
 import { FlightPlayer } from './flight';
 import { PorkchopView, legendGradient } from './porkchop';
 import { renderReport, reportAction } from './report';
 import { sound } from './sound';
+import { NASA_PRESET_NAME, nasaPreset } from '../game/presets';
+import { HISTORY } from '../game/history';
+import { directTransfer as directTr, jgaTransfer as jgaTr } from '../physics/porkchop';
 
 type Screen = 'title' | 'select' | 'design' | 'flight' | 'report';
 type MeterSpec = { id: string; tab: Tab; label: string; value: number; fmt: (v: number) => string; unit: string; of: string; fill: number | null; st: Status };
@@ -36,11 +39,18 @@ const STEP_ICON: Record<Tab, string> = {
 };
 const STEP_NAME: Record<Tab, string> = { trajectory: 'Route', spacecraft: 'Craft', science: 'Science', comms: 'Comms', launch: 'Launch' };
 const STEP_HEAD: Record<Tab, (d: Design, ev: Evaluation) => { title: string; sub: string }> = {
-  trajectory: () => ({ title: 'Launch window', sub: 'Each pixel is a real trajectory. Blue is cheap, red is costly.' }),
-  spacecraft: () => ({ title: 'Spacecraft', sub: 'Every part adds mass and cost. Hover a tile for details.' }),
-  science: (d) => ({ title: 'Instruments', sub: `Reach ${missionOf(d).scienceTarget} points. Each one costs mass, power and money.` }),
-  comms: (_d, ev) => ({ title: 'Data & budget', sub: `${ev.data.earthDistAU.toFixed(1)} AU from Earth. A bigger dish brings more data home.` }),
-  launch: (d, ev) => ({ title: 'Launch', sub: d.transfer ? `${fmtKg(ev.mass.launch)} to send at launch energy C3 ${d.transfer.c3.toFixed(1)}.` : 'Pick a launch window first.' }),
+  trajectory: () => ({ title: 'Launch window', sub: 'Click a blue area of the chart to pick when to launch, or press Auto-pick.' }),
+  spacecraft: (d, ev) => ({
+    title: 'Spacecraft',
+    sub: missionOf(d).type === 'lander'
+      ? `Turn every row green: a lander that carries your ${fmtInt(ev.mass.rover ?? 0)} kg rover, enough power and fuel.`
+      : missionOf(d).type === 'orbiter'
+        ? 'Survive Jupiter: enough power 5 AU from the Sun, a vault against radiation, fuel for the braking burn.'
+        : 'Travel light: power that works 40 AU from the Sun, and fuel for course corrections.',
+  }),
+  science: (d) => ({ title: 'Instruments', sub: `Pick instruments worth ${missionOf(d).scienceTarget}+ science points. Each one costs mass, power and money.` }),
+  comms: (d) => ({ title: 'Data & budget', sub: missionOf(d).type === 'lander' ? 'Relay orbiters carry most rover data; a dish is your backup. Stay under the red budget line.' : 'Get your science data home and stay under the red budget line.' }),
+  launch: () => ({ title: 'Launch', sub: 'Pick a rocket with a green bar, then press and hold Launch.' }),
 };
 const TILE_NAME: Record<string, [string, string]> = {
   airbags: ['Airbags', 'like Spirit'], retro: ['Retro rockets', 'like Phoenix'], skycrane: ['Sky crane', 'like Perseverance'],
@@ -76,12 +86,16 @@ export class App {
   panelAnim = true;
   private overlayScreen: Screen | null = null;
   private rev = 0;
-  private revShown = 0;
   private lastPick: string | null = null;
   private inkPrev: { left: number; width: number } | null = null;
   private meterVals = new Map<string, number>();
   private topKey = '';
   private showHelp = false;
+  /** ?seed=N makes flights repeatable (for demos and the video). */
+  demoSeed: number | null = null;
+  demoSpeed = 1;
+  private history = false;
+  private historyGrids = new Map<string, PorkchopGrid>();
 
   constructor() {
     this.view = new SolarSystemView($('#space'));
@@ -97,6 +111,13 @@ export class App {
       requestAnimationFrame(idle);
     };
     idle();
+    // URL options: ?mission=mars|jupiter|pluto &difficulty=easy|normal|hard|sandbox &preset=nasa &seed=N &speed=1|2|4
+    const q = new URLSearchParams(location.search);
+    const qm = q.get('mission');
+    const qd = q.get('difficulty') as Difficulty | null;
+    if (qd && ['easy', 'normal', 'hard', 'sandbox'].includes(qd)) this.select.difficulty = qd;
+    if (q.has('seed') && isFinite(Number(q.get('seed')))) this.demoSeed = Math.floor(Number(q.get('seed')));
+    if ([1, 2, 4].includes(Number(q.get('speed')))) this.demoSpeed = Number(q.get('speed'));
     // shared design link?
     const m = location.hash.match(/#d[-=]([\w-]+)/);
     const shared = m ? decodeDesign(m[1]) : null;
@@ -105,6 +126,13 @@ export class App {
       this.tab = 'launch';
       toast('Loaded a shared mission design', 'good');
       this.render();
+    } else if (qm && MISSIONS.some((x) => x.id === qm)) {
+      this.select.missionId = qm;
+      if (q.get('preset') === 'nasa') this.loadNasaDesign(qm, this.select.difficulty);
+      else {
+        this.screen = 'select';
+        this.render();
+      }
     } else this.render();
   }
 
@@ -126,9 +154,8 @@ export class App {
     this.attempt = 0;
     this.screen = 'design';
     this.panelAnim = true;
-    this.showHelp = d.difficulty === 'easy';
+    this.showHelp = d.difficulty !== 'hard';
     this.rev = 0;
-    this.revShown = 0;
     this.inkPrev = null;
     const m = missionOf(d);
     this.view.setHighlight(this.highlightBodies());
@@ -214,6 +241,7 @@ export class App {
       readyJD: this.ev.readyJD,
       maxTofDays: missionOf(d).maxTofDays,
       reachC3: this.reachC3(),
+      rocketName: rocketById(d.rocketId).name,
       selected: d.transfer ? { launchJD: d.transfer.launchJD, tofDays: d.transfer.tofDays } : null,
     });
   }
@@ -341,16 +369,16 @@ export class App {
       this.pork = new PorkchopView(
         this.porkHost,
         grid,
-        { readyJD: this.ev!.readyJD, maxTofDays: m.maxTofDays, reachC3: this.reachC3(), selected: null },
+        { readyJD: this.ev!.readyJD, maxTofDays: m.maxTofDays, reachC3: this.reachC3(), rocketName: rocketById(this.design!.rocketId).name, selected: null },
         (ix, iy) => this.hoverCell(grid, ix, iy, zoomed),
         () => this.leaveCell(),
-        (ix, iy) => (zoomed ? this.pickCell(grid, ix, iy) : this.zoomTo(sp.launchStartJD + ((sp.launchEndJD - sp.launchStartJD) * ix) / (sp.nx - 1))),
+        (ix, iy) => (zoomed ? this.pickCell(grid, ix, iy) : this.zoomTo(sp.launchStartJD + ((sp.launchEndJD - sp.launchStartJD) * ix) / (sp.nx - 1), true)),
       );
     }
     this.updatePorkOverlay();
     const r = this.pork.range;
     const lg = $('#pork-legend-range');
-    if (lg) lg.innerHTML = `<span>${r.min.toFixed(0)}</span><span>C3 km²/s²</span><span>${r.max.toFixed(0)}+</span>`;
+    if (lg) lg.innerHTML = `<span>◀ cheap (C3 ${r.min.toFixed(0)})</span><span>launch energy</span><span>costly (${r.max.toFixed(0)}+) ▶</span>`;
   }
 
   private hoverTimer = 0;
@@ -458,13 +486,13 @@ export class App {
     const c = (ids: string[]) => this.worst(ev.checks.filter((k) => ids.includes(k.id)));
     const cap = ev.mass.capacity;
     const specs: MeterSpec[] = [
-      { id: 'mass', tab: 'launch', label: 'Mass', value: ev.mass.launch, fmt: fmtInt, unit: 'kg', of: cap !== null ? `/ ${fmtInt(cap)}` : 'no route', fill: cap ? ev.mass.launch / cap : null, st: c(['lv', 'rover']) },
-      { id: 'power', tab: 'spacecraft', label: 'Power', value: ev.power.avgLoad, fmt: fmtInt, unit: 'W', of: `/ ${fmtInt(ev.power.generated)}`, fill: ev.power.avgLoad / Math.max(1, ev.power.generated), st: c(['power', 'battery']) },
-      { id: 'dv', tab: 'spacecraft', label: 'Δv', value: ev.dv.required * 1000, fmt: fmtInt, unit: 'm/s', of: `/ ${fmtInt(ev.dv.available * 1000)}`, fill: ev.dv.required / Math.max(1e-6, ev.dv.available), st: c(['dv']) },
-      { id: 'budget', tab: 'comms', label: 'Budget', value: ev.cost.total, fmt: (v) => '$' + fmtM(v), unit: '', of: `/ $${fmtM(ev.cost.cap)}`, fill: ev.cost.total / ev.cost.cap, st: c(['budget']) },
-      { id: 'data', tab: 'comms', label: 'Data', value: ev.data.fraction * 100, fmt: fmtInt, unit: '%', of: 'returned', fill: ev.data.fraction, st: c(['data']) },
-      { id: 'science', tab: 'science', label: 'Science', value: ev.science.potential, fmt: fmtInt, unit: 'pts', of: `/ ${m.scienceTarget}`, fill: ev.science.potential / m.scienceTarget, st: c(['sci', 'hga']) },
-      { id: 'time', tab: 'trajectory', label: 'Cruise', value: ev.time.tofDays ?? 0, fmt: (v) => (ev.time.tofDays ? formatDuration(v) : 'No route'), unit: '', of: `ready ${formatJDShort(ev.readyJD)}`, fill: ev.time.tofDays ? ev.time.tofDays / m.maxTofDays : null, st: c(['traj', 'ready', 'tof', 'entry']) },
+      { id: 'mass', tab: 'launch', label: 'Mass', value: ev.mass.launch, fmt: fmtInt, unit: 'kg', of: cap !== null ? `max ${fmtInt(cap)}` : 'no route yet', fill: cap ? ev.mass.launch / cap : null, st: c(['lv', 'rover']) },
+      { id: 'power', tab: 'spacecraft', label: 'Power', value: ev.power.avgLoad, fmt: fmtInt, unit: 'W', of: `have ${fmtInt(ev.power.generated)}`, fill: ev.power.avgLoad / Math.max(1, ev.power.generated), st: c(['power', 'battery']) },
+      { id: 'dv', tab: 'spacecraft', label: 'Δv', value: ev.dv.required * 1000, fmt: fmtInt, unit: 'm/s', of: `have ${fmtInt(ev.dv.available * 1000)}`, fill: ev.dv.required / Math.max(1e-6, ev.dv.available), st: c(['dv']) },
+      { id: 'budget', tab: 'comms', label: 'Budget', value: ev.cost.total, fmt: (v) => '$' + fmtM(v), unit: '', of: `cap $${fmtM(ev.cost.cap)}`, fill: ev.cost.total / ev.cost.cap, st: c(['budget']) },
+      { id: 'data', tab: 'comms', label: 'Data', value: ev.data.fraction * 100, fmt: fmtInt, unit: '%', of: 'gets home', fill: ev.data.fraction, st: c(['data']) },
+      { id: 'science', tab: 'science', label: 'Science', value: ev.science.potential, fmt: fmtInt, unit: 'pts', of: `goal ${m.scienceTarget}`, fill: ev.science.potential / m.scienceTarget, st: c(['sci', 'hga']) },
+      { id: 'time', tab: 'trajectory', label: 'Trip', value: ev.time.tofDays ?? 0, fmt: (v) => (ev.time.tofDays ? formatDuration(v) : 'No route'), unit: '', of: '', fill: ev.time.tofDays ? ev.time.tofDays / m.maxTofDays : null, st: c(['traj', 'ready', 'tof', 'entry']) },
     ];
     const key = `design:${m.id}`;
     if (this.topKey !== key) {
@@ -474,7 +502,7 @@ export class App {
         <div class="brand" role="button" data-act="home" tabindex="0"><span class="logo-mark"></span><span class="brand-text">Mission Architect</span>
           <span class="brand-sub"><b>${esc(m.name)}</b>${BODIES[m.target].name} ${m.type} · ${this.design.difficulty}</span></div>
         <div class="meters">${specs
-          .map((s) => `<button class="meter" data-act="tab" data-tab="${s.tab}" data-meter="${s.id}"><span class="m-label"><span>${s.label}</span><span class="m-of"></span></span><span class="m-value"><span class="m-num">${s.fmt(0)}</span><small>${s.unit}</small></span><span class="m-bar"><i></i></span></button>`)
+          .map((s) => `<button class="meter" data-act="tab" data-tab="${s.tab}" data-meter="${s.id}"><span class="m-label"><span><i class="m-flag"></i>${s.label}</span><span class="m-of"></span></span><span class="m-value"><span class="m-num">${s.fmt(0)}</span><small>${s.unit}</small></span><span class="m-bar"><i></i></span></button>`)
           .join('')}</div>${this.soundButton()}`;
     }
     for (const s of specs) {
@@ -484,8 +512,18 @@ export class App {
       el.title = `${s.label}: ${s.fmt(s.value)} ${s.unit} ${s.of}`;
       (el.querySelector('.m-of') as HTMLElement).textContent = s.of;
       (el.querySelector('.m-bar i') as HTMLElement).style.width = `${s.fill === null ? 0 : Math.min(100, Math.max(2, s.fill * 100))}%`;
+      (el.querySelector('.m-flag') as HTMLElement).textContent = s.st === 'fail' ? '✕ ' : s.st === 'warn' ? '! ' : '';
       const num = el.querySelector('.m-num') as HTMLElement;
       const prev = this.meterVals.get(s.id);
+      if (prev !== undefined && s.id !== 'time' && Math.abs(s.value - prev) >= (s.id === 'data' ? 1 : 0.5)) {
+        const diff = s.value - prev;
+        const goodWhenUp = s.id === 'science' || s.id === 'data';
+        const chip = document.createElement('span');
+        chip.className = `delta ${diff > 0 === goodWhenUp ? 'good' : 'bad'}`;
+        chip.textContent = `${diff > 0 ? '+' : '−'}${s.fmt(Math.abs(diff))}${s.unit && s.unit !== '%' ? ' ' + s.unit : s.unit}`;
+        el.appendChild(chip);
+        setTimeout(() => chip.remove(), 1400);
+      }
       if (prev === undefined) tween(num, 0, s.value, s.fmt, 1000);
       else if (Math.abs(prev - s.value) > 1e-6) {
         tween(num, prev, s.value, s.fmt, 550);
@@ -552,8 +590,9 @@ export class App {
       return `<button class="step ${t === this.tab ? 'active' : ''} ${st}" data-act="tab" data-tab="${t}" aria-current="${t === this.tab ? 'step' : 'false'}">${STEP_ICON[t]}<span>${STEP_NAME[t]}</span><i class="dot"></i></button>`;
     }).join('');
     const role = TAB_ROLE[this.tab];
-    const who = this.team.enabled
-      ? `<div class="role-banner" style="--rc:${ROLE_INFO[role].color}"><span class="role-dot"></span><b>${esc(this.playerFor(role))}</b><span class="role-owns">${ROLE_INFO[role].title}</span></div>`
+    const myGoal = this.team.enabled ? roleGoals(ev).find((g) => g.role === role)! : null;
+    const who = this.team.enabled && myGoal
+      ? `<div class="role-banner" style="--rc:${ROLE_INFO[role].color}"><span class="role-dot"></span><b>${esc(this.playerFor(role))}</b><span class="role-owns">${ROLE_INFO[role].title}</span><span class="role-goal ${myGoal.met ? 'met' : ''}">${myGoal.met ? '✓' : '○'} Your goal: ${myGoal.goal}</span></div>`
       : '';
     let body = '';
     switch (this.tab) {
@@ -568,25 +607,25 @@ export class App {
     const okCount = checks.length - issues.length;
     const enter = this.panelAnim;
     this.panelAnim = false;
-    const revBump = this.rev !== this.revShown;
-    this.revShown = this.rev;
     const head = STEP_HEAD[this.tab](d, ev);
+    const stepState = this.worst(checks);
+    const otherFails = ev.checks.filter((c) => c.area !== this.tab && c.status === 'fail');
+    const issueBtn = (c: Check, other: boolean) =>
+      `<button class="issue ${c.status} ${other ? 'other' : ''}" ${other ? `data-act="tab" data-tab="${c.area}"` : ''} data-tip="${esc(stripTags(c.detail))}" data-tip-title="${esc(c.label)}"><b>${c.status === 'fail' ? 'NO-GO' : 'CHECK'}</b><span>${other ? `${STEP_NAME[c.area]}: ` : ''}${esc(shortIssue(c.detail))}</span>${other ? '<i>Go →</i>' : ''}</button>` +
+      (c.id === 'ready' && c.status === 'fail' ? `<button class="fix-btn" data-act="next-window">Move launch to the next window I'm ready for →</button>` : '');
     panel.innerHTML = `
-      <nav class="rail" aria-label="Design steps">${rail}<i class="rail-ink"></i>
-        <div class="rail-foot ${revBump && !enter ? 'bump' : ''}" title="Design revision: goes up every time you change something">REV<b>${revLetter(this.rev)}</b></div></nav>
+      <nav class="rail" aria-label="Design steps">${rail}<i class="rail-ink"></i></nav>
       <div class="sheet">
         <header class="sheet-head ${enter ? 'enter' : ''}">
           <div class="sheet-kicker">Step ${idx + 1} of 5</div>
           <h2>${head.title}</h2>
-          <p class="sheet-sub">${head.sub}</p>
+          <p class="goal-line ${stepState}"><b>${stepState === 'ok' ? '✓' : stepState === 'warn' ? '!' : '✕'}</b><span>${head.sub}</span></p>
           ${this.design.difficulty !== 'hard' ? `<button class="help ${this.showHelp ? 'on' : ''}" data-act="help" aria-expanded="${this.showHelp}" title="Tip from the Flight Director">?</button>` : ''}
           ${this.showHelp && this.design.difficulty !== 'hard' ? `<div class="help-box">${ev.mission.hints[this.tab]}</div>` : ''}
         </header>
         <div class="sheet-body ${enter ? 'enter' : ''}">${who}${body}</div>
         <footer class="sheet-foot">
-          <div class="issues">${issues.length
-            ? issues.map((c) => `<button class="issue ${c.status}" data-tip="${esc(stripTags(c.detail))}" data-tip-title="${esc(c.label)}"><b>${c.status === 'fail' ? 'NO-GO' : 'CHECK'}</b><span>${esc(shortIssue(c.detail))}</span></button>`).join('')
-            : ''}${okCount ? `<div class="all-ok"><b>✓</b> ${okCount} check${okCount === 1 ? '' : 's'} OK</div>` : ''}</div>
+          <div class="issues">${issues.map((c) => issueBtn(c, false)).join('')}${otherFails.map((c) => issueBtn(c, true)).join('')}${okCount ? `<div class="all-ok"><b>✓</b> ${okCount} check${okCount === 1 ? '' : 's'} OK on this step</div>` : ''}</div>
           <div class="nav-btns">
             ${idx > 0 ? `<button class="btn ghost small" data-act="tab" data-tab="${TABS[idx - 1]}">← Back</button>` : '<span></span>'}
             ${idx < TABS.length - 1 ? `<button class="btn small" data-act="tab" data-tab="${TABS[idx + 1]}">Next: ${STEP_NAME[TABS[idx + 1]]} →</button>` : ''}
@@ -605,7 +644,10 @@ export class App {
       panel.querySelector(sel)?.classList.add('just');
       this.lastPick = null;
     }
-    if (this.tab === 'trajectory') this.mountPorkchop();
+    if (this.tab === 'trajectory') {
+      if (this.history) this.mountHistory();
+      else this.mountPorkchop();
+    }
   }
 
   private playerFor(role: RoleId): string {
@@ -649,6 +691,11 @@ export class App {
           .join('')}${zoomed ? '<button class="chip back" data-act="unzoom">All years</button>' : ''}</div></div>`
       : '';
     const ls = m.grids[d.trajectoryKind]!;
+    const hist = HISTORY[m.id];
+    if (this.history && hist) return this.historyHTML();
+    const histBtn = hist
+      ? `<button class="btn ghost small wide hist-btn" data-act="history-on">⟲ Check the physics: see the real ${hist.mission} launch</button>`
+      : `<p class="note">Juno reached Jupiter with an Earth flyby two years after launch (ΔV-EGA), a trick this game does not model, so it has no history view.</p>`;
     return `
       ${routes}
       ${chips}
@@ -656,9 +703,126 @@ export class App {
         ? `<div class="chart-box"><div id="pork-slot"></div>
              <div class="legend"><div class="legend-bar" style="background:${legendGradient()}"></div><div class="legend-range" id="pork-legend-range"></div></div></div>
            <div class="readout" id="pork-readout">${d.transfer ? this.transferSummary(d.transfer, false) : this.idleReadout()}</div>
-           <button class="btn small wide" data-act="best">Auto-pick the cheapest launch</button>`
+           <button class="btn small wide" data-act="best">Auto-pick the cheapest launch</button>
+           ${histBtn}`
         : `<div class="loading">Computing ${fmtInt(ls.nx * ls.ny * (d.trajectoryKind === 'jga' ? 40 : 1))} real trajectories…<div class="progress"><i id="grid-progress"></i></div></div>`}
     `;
+  }
+
+  private historyHTML(): string {
+    const m = missionOf(this.design!);
+    const hist = HISTORY[m.id]!;
+    const tr = hist.transfer();
+    const grid = this.historyGrids.get(m.id);
+    if (!grid) this.loadHistoryGrid();
+    return `<div class="hist-head"><span class="hist-tag">History mode</span><b>${esc(hist.mission)}</b><button class="chip back" data-act="history-off">Back to my mission</button></div>
+      ${grid
+        ? `<div class="chart-box"><div id="hist-slot"></div>
+             <div class="legend"><div class="legend-bar" style="background:${legendGradient()}"></div><div class="legend-range"><span>◀ cheap</span><span>launch energy</span><span>costly ▶</span></div></div></div>`
+        : `<div class="loading">Computing the real ${esc(hist.mission)} launch window…<div class="progress"><i id="grid-progress"></i></div></div>`}
+      ${tr ? `<table class="cmp-table"><thead><tr><th></th><th>Real mission</th><th>Our engine</th></tr></thead><tbody>${hist.rows(tr).map(([k, a, b]) => `<tr><td>${k}</td><td>${a}</td><td><b>${b}</b></td></tr>`).join('')}</tbody></table>` : ''}
+      <p class="note">${hist.note}</p>
+      <button class="link-btn" data-act="validation">All data sources and validation tests →</button>`;
+  }
+
+  private async loadHistoryGrid() {
+    const m = missionOf(this.design!);
+    const hist = HISTORY[m.id];
+    if (!hist || this.historyGrids.has(m.id)) return;
+    const g = await computeGrid(hist.spec, (f) => {
+      const bar = $('#grid-progress');
+      if (bar) bar.style.width = `${Math.round(f * 100)}%`;
+    });
+    this.historyGrids.set(m.id, g);
+    if (this.history && this.tab === 'trajectory') this.renderPanel();
+  }
+
+  private mountHistory() {
+    const slot = $('#hist-slot');
+    const m = missionOf(this.design!);
+    const hist = HISTORY[m.id];
+    const grid = this.historyGrids.get(m.id);
+    if (!slot || !hist || !grid) return;
+    const tr = hist.transfer();
+    const host = document.createElement('div');
+    host.className = 'porkchop';
+    slot.appendChild(host);
+    new PorkchopView(
+      host,
+      grid,
+      { readyJD: -Infinity, maxTofDays: Infinity, reachC3: -1, selected: tr ? { launchJD: tr.launchJD, tofDays: tr.tofDays } : null, selectedLabel: 'REAL' },
+      (ix, iy) => {
+        const t = transferAt(grid, ix, iy);
+        if (!t) return;
+        this.view.setDate(t.launchJD);
+        this.view.showTransfer(t, true);
+      },
+      () => {
+        if (!tr) return;
+        this.view.setDate(tr.launchJD);
+        this.view.showTransfer(tr);
+      },
+      () => undefined,
+    );
+  }
+
+  private setHistory(on: boolean) {
+    this.history = on;
+    const m = missionOf(this.design!);
+    const hist = HISTORY[m.id];
+    if (on && hist) {
+      const tr = hist.transfer();
+      if (tr) {
+        this.view.setHighlight(tr.flyby ? ['earth', 'jupiter', m.target] : ['earth', m.target]);
+        this.view.setDate(tr.launchJD);
+        this.view.showTransfer(tr);
+      }
+    } else {
+      this.view.setHighlight(this.highlightBodies());
+      this.view.setDate(this.design!.transfer?.launchJD ?? this.ev!.readyJD);
+      this.view.showTransfer(this.design!.transfer);
+    }
+    this.renderPanel();
+  }
+
+  /** "Data & Validation": every source, every validation number, every simplification. */
+  showValidation() {
+    const m20 = directTr('mars', 2459060.5, 203);
+    const nh = jgaTr('pluto', 2453754.5, 405, 3058);
+    const rows: [string, string, string][] = [
+      ['Mars 2020 launch energy C3', '≈14.5 km²/s²', m20 ? `${m20.c3.toFixed(1)} km²/s²` : '-'],
+      ['New Horizons launch energy C3', '157.7 km²/s²', nh ? `${nh.c3.toFixed(1)} km²/s²` : '-'],
+      ['New Horizons closest approach to Jupiter', '≈32 Jupiter radii', nh?.flyby ? `${nh.flyby.rpRadii.toFixed(1)} Jupiter radii` : '-'],
+      ['New Horizons speed past Pluto', '13.8 km/s', nh ? `${nh.vinfArr.toFixed(2)} km/s` : '-'],
+    ];
+    const src: [string, string, string][] = [
+      ['Planet positions', 'NASA/JPL Solar System Dynamics: Approximate Positions of the Planets (Keplerian elements, 1800-2050)', 'https://ssd.jpl.nasa.gov/planets/approx_pos.html'],
+      ['Planet masses and radii', 'NASA Planetary Fact Sheets (NSSDCA)', 'https://nssdc.gsfc.nasa.gov/planetary/factsheet/'],
+      ['Rocket performance', 'NASA Launch Services Program, Launch Vehicle Performance Website (payload vs C3)', 'https://elvperf.ksc.nasa.gov/'],
+      ['Mars 2020 / Perseverance', 'NASA mission page (dates, mass, power, instruments)', 'https://science.nasa.gov/mission/mars-2020-perseverance/'],
+      ['Juno', 'NASA mission page (solar arrays, radiation vault, orbit)', 'https://science.nasa.gov/mission/juno/'],
+      ['New Horizons', 'NASA mission page (trajectory, RTG, instruments, data downlink)', 'https://science.nasa.gov/mission/new-horizons/'],
+      ['Nuclear power (MMRTG, GPHS-RTG)', 'NASA Radioisotope Power Systems program', 'https://science.nasa.gov/planetary-science/programs/radioisotope-power-systems/'],
+      ['Deep Space Network', 'NASA DSN (34 m and 70 m antennas)', 'https://www.jpl.nasa.gov/missions/dsn'],
+    ];
+    this.openModal(`<div class="modal-card wide"><button class="close" data-act="modal-close" aria-label="Close">×</button>
+      <div class="eyebrow">Data &amp; validation</div><h2>How we know the physics is right</h2>
+      <p>The engine is given only launch and arrival dates. It computes the rest from planet positions, and the results match the real missions:</p>
+      <table class="cmp-table"><thead><tr><th></th><th>Real mission</th><th>Our engine</th></tr></thead><tbody>${rows.map(([k, a, b]) => `<tr><td>${k}</td><td>${a}</td><td><b>${b}</b></td></tr>`).join('')}</tbody></table>
+      <p class="note">These numbers are recomputed live in your browser right now, and checked by the automated tests in <code>tests/physics.test.ts</code>.</p>
+      <h3>Models</h3>
+      <ul class="sources"><li>Lambert's problem (universal variables) for every trajectory on the launch-window chart</li><li>Two-body orbit propagation; patched-conic powered gravity assist at Jupiter</li><li>Rocket equation, orbit-insertion burn, atmospheric entry speed</li><li>Solar power falls with distance squared; RTG output decays every year</li><li>Radio link budget calibrated to New Horizons' downlink from Pluto</li></ul>
+      <h3>NASA data sources</h3>
+      <ul class="sources">${src.map(([k, t, u]) => `<li><b>${k}:</b> ${t}. <a href="${u}" target="_blank" rel="noopener">${u.replace('https://', '')}</a></li>`).join('')}</ul>
+      <h3>Simplifications</h3>
+      <p class="note">Rocket curves, costs, instrument masses and powers are rounded public values chosen to keep the real trade-offs. Juno's Earth flyby, multi-revolution transfers and atmospheric drag are not modelled. This is a teaching game, not flight software.</p>
+    </div>`);
+  }
+
+  openModal(html: string) {
+    const root = $('#modal-root');
+    root.innerHTML = `<div class="modal" role="dialog" aria-modal="true">${html}</div>`;
+    sound.sheet();
   }
 
   private tabSpacecraft(): string {
@@ -668,7 +832,7 @@ export class App {
     const planet = BODIES[m.target].name;
     let html = '';
     if (m.type === 'lander') {
-      html += `<div class="group"><label>Landing system · heaviest rover it can land</label><div class="tiles three">${LANDINGS.map((l) =>
+      html += `<div class="group"><label>Landing system · max rover mass (yours: ${fmtInt(ev.mass.rover ?? 0)} kg)</label><div class="tiles three">${LANDINGS.map((l) =>
         this.tile({ key: 'landingId', id: l.id, name: TILE_NAME[l.id][0], sub: TILE_NAME[l.id][1], big: fmtInt(l.maxRover), unit: 'kg', small: `$${l.costM}M`, tip: `${l.desc} Landing risk ${(l.risk * 100).toFixed(0)}%. Your rover: ${fmtInt(ev.mass.rover ?? 0)} kg.`, selected: d.landingId === l.id, bad: ev.mass.rover !== undefined && ev.mass.rover > l.maxRover }),
       ).join('')}</div></div>`;
     }
@@ -679,7 +843,7 @@ export class App {
       }).join('')}</div></div>`;
     }
     const powers = POWER.filter((p) => m.powerIds.includes(p.id));
-    html += `<div class="group"><label>Power source · watts at ${planet}</label><div class="tiles ${powers.length === 3 ? 'three' : 'two'}">${powers.map((p) => {
+    html += `<div class="group"><label>Power at ${planet} (you need ${fmtInt(ev.power.avgLoad)} W)</label><div class="tiles ${powers.length === 3 ? 'three' : 'two'}">${powers.map((p) => {
       const e = evaluate({ ...d, powerId: p.id });
       return this.tile({ key: 'powerId', id: p.id, name: TILE_NAME[p.id][0], sub: TILE_NAME[p.id][1], big: fmtInt(e.power.generated), unit: 'W', small: `${p.mass} kg · $${p.costM}M`, tip: `${p.desc} You need about ${fmtInt(ev.power.avgLoad)} W.`, selected: d.powerId === p.id, bad: e.power.margin < 0 });
     }).join('')}</div></div>`;
@@ -714,7 +878,7 @@ export class App {
       </div>
       <div class="group"><label>Instruments · science points each</label><div class="tiles two">${m.instruments.map((i) => {
         const on = d.instruments.includes(i.id);
-        return this.tile({ key: 'instr', id: i.id, act: 'instr', name: i.name, sub: `like ${i.analog}`, big: `+${i.science}`, small: `${i.mass} kg · ${i.power} W · $${i.costM}M`, tip: `${i.desc} Sends ${i.data} ${unit} of data.`, selected: on, badge: i.needsHGA ? 'needs dish' : i.outreach ? 'outreach' : '' });
+        return this.tile({ key: 'instr', id: i.id, act: 'instr', name: i.name, sub: `like ${i.analog}`, big: `+${i.science}`, small: `${i.mass} kg · ${i.power} W · $${i.costM}M`, tip: `${i.desc} Sends ${i.data} ${unit} of data.`, selected: on, badge: i.needsHGA ? 'needs dish' : i.outreach ? 'outreach +3' : '' });
       }).join('')}</div></div>`;
   }
 
@@ -761,7 +925,7 @@ export class App {
     const stations: [string, Tab][] = [['Route', 'trajectory'], ['Craft', 'spacecraft'], ['Science', 'science'], ['Comms', 'comms'], ['Launch', 'launch']];
     const poll = stations.map(([name, area]) => {
       const st = this.worst(ev.checks.filter((c) => c.area === area));
-      return `<button class="poll ${st}" data-act="tab" data-tab="${area}"><span>${name}</span><b>${st === 'fail' ? 'NO-GO' : 'GO'}</b></button>`;
+      return `<button class="poll ${st}" data-act="tab" data-tab="${area}"><span>${name}</span><b>${st === 'fail' ? 'NO-GO' : st === 'warn' ? 'CHECK' : 'GO'}</b></button>`;
     }).join('');
     let team = '';
     if (this.team.enabled) {
@@ -774,13 +938,17 @@ export class App {
     }
     const allSigned = !this.team.enabled || ROLE_ORDER.every((r) => this.team.signoffs[r]);
     const canLaunch = ev.launchable && allSigned;
+    const m = ev.mission;
+    const warnNote = ev.science.potential < m.scienceTarget
+      ? `Science ${Math.round(ev.science.potential)}/${m.scienceTarget}: expect partial success · hold to launch anyway`
+      : ev.checks.some((c) => c.status === 'warn') ? 'Some checks are tight · hold to launch anyway' : 'Press and hold';
     return `<div class="group"><label>Rocket · capacity at your ${term('c3', 'C3')}</label><div class="rtiles">${rockets}</div></div>
       <div class="group"><label>Mission control poll</label><div class="polls">${poll}</div></div>
       ${team}
       <div class="launch-row">
-        <button class="btn launch" data-hold="launch" data-act="launch-hint" ${canLaunch ? '' : 'disabled'}><i class="hold-fill"></i><span>${ev.launchable ? (allSigned ? 'Launch' : 'Waiting for sign-offs') : 'No-go'}${canLaunch ? '<small>Press and hold</small>' : '<small>Fix the red items first</small>'}</span></button>
+        <button class="btn launch" data-hold="launch" data-act="launch-hint" ${canLaunch ? '' : 'disabled'}><i class="hold-fill"></i><span>${ev.launchable ? (allSigned ? 'Launch' : 'Waiting for sign-offs') : 'No-go'}<small>${canLaunch ? warnNote : 'Fix the red items first'}</small></span></button>
       </div>
-      <button class="link-btn" data-act="share">Copy a share link to this design</button>`;
+`;
   }
 
   // ---------------------------------------------------------------- overlays
@@ -820,6 +988,7 @@ export class App {
       <div class="cta on-space">
         <button class="btn big" data-act="to-select">Start a mission</button>
         <button class="btn ghost" data-act="howto">How it works</button>
+        <button class="btn ghost" data-act="validation">Data &amp; validation</button>
       </div>
       ${lb.length ? `<div class="mini-lb"><h4>Top missions on this device</h4>${lb.map((e) => `<div><span>${esc(e.name)}</span><span>${esc(missionById(e.missionId).name)}</span><b>${e.score}</b></div>`).join('')}</div>` : ''}
       <p class="credit">Built for NASA Space Apps 2026 · planet data: NASA/JPL Solar System Dynamics</p>
@@ -866,8 +1035,8 @@ export class App {
       <div class="mission-cards">${cards}</div>
       <div class="brief"><b>${esc(m.name)}:</b> ${esc(m.brief)}</div>
       <div class="select-row">
-        <div><h4>Difficulty</h4><div class="seg">${(['easy', 'normal', 'hard'] as Difficulty[]).map((x) => `<button class="${s.difficulty === x ? 'on' : ''}" data-act="pick-diff" data-val="${x}">${x[0].toUpperCase() + x.slice(1)}</button>`).join('')}</div>
-          <p class="small-note">${s.difficulty === 'easy' ? '+20% budget, gentler random events, hints on.' : s.difficulty === 'normal' ? 'Realistic. NASA HQ may change your budget mid-design.' : 'No hints, more failures, rockets can fail. ×1.25 score.'}</p></div>
+        <div><h4>Difficulty</h4><div class="seg">${(['easy', 'normal', 'hard', 'sandbox'] as Difficulty[]).map((x) => `<button class="${s.difficulty === x ? 'on' : ''}" data-act="pick-diff" data-val="${x}">${x[0].toUpperCase() + x.slice(1)}</button>`).join('')}</div>
+          <p class="small-note">${{ easy: '+20% budget, gentle random events, tips open.', normal: 'Realistic. Expect surprises, like a budget cut.', hard: 'Rockets can fail, more breakdowns, no tips. Score ×1.25.', sandbox: 'Huge budget, no random events. Just experiment (score ×0.5).' }[s.difficulty]}</p></div>
         <div><h4>Players</h4><div class="seg"><button class="${!s.team ? 'on' : ''}" data-act="pick-mode" data-val="solo">Solo</button><button class="${s.team ? 'on' : ''}" data-act="pick-mode" data-val="team">Team (2-4)</button></div>
           ${s.team ? `<div class="players">
             <div class="seg small">${[2, 3, 4].map((n) => `<button class="${s.count === n ? 'on' : ''}" data-act="pick-count" data-val="${n}">${n} players</button>`).join('')}</div>
@@ -875,7 +1044,10 @@ export class App {
             <p class="small-note">Roles: ${ROLE_ORDER.map((r, i) => `<b style="color:${ROLE_INFO[r].color}">${ROLE_INFO[r].title}</b> → P${(i % s.count) + 1}`).join(' · ')}</p></div>` : ''}
         </div>
       </div>
-      <button class="btn big" data-act="begin">Begin mission design →</button>
+      <div class="select-actions">
+        <button class="btn ghost big" data-act="nasa-design" data-tip="Load a design modelled on the real NASA mission and go straight to launch.">Fly NASA's design</button>
+        <button class="btn big" data-act="begin">Design my own →</button>
+      </div>
     </div>`;
   }
 
@@ -996,6 +1168,7 @@ export class App {
       if (e.key === 'Escape') {
         hide();
         $('#howto')?.classList.add('hidden');
+        $('#modal-root').innerHTML = '';
       }
     });
   }
@@ -1022,6 +1195,15 @@ export class App {
       case 'pick-diff': this.select.difficulty = el.dataset.val as Difficulty; this.renderOverlay(); break;
       case 'pick-mode': this.select.team = el.dataset.val === 'team'; this.renderOverlay(); break;
       case 'pick-count': this.select.count = Number(el.dataset.val); this.renderOverlay(); break;
+      case 'nasa-design':
+        this.loadNasaDesign(this.select.missionId, this.select.difficulty);
+        break;
+      case 'nasa-design-report':
+        if (this.design) {
+          this.view.setCloseupModel(null);
+          this.loadNasaDesign(this.design.missionId, this.design.difficulty);
+        }
+        break;
       case 'begin': {
         const m = missionById(this.select.missionId);
         const players = Array.from({ length: this.select.count }, (_, i) => this.select.players[i]?.trim() || `Player ${i + 1}`);
@@ -1032,8 +1214,10 @@ export class App {
       case 'tab':
         if (this.screen !== 'design') return;
         if (this.tab !== el.dataset.tab) this.panelAnim = true;
+        if (this.team.enabled && this.playerFor(TAB_ROLE[this.tab]) !== this.playerFor(TAB_ROLE[el.dataset.tab as Tab]))
+          toast(`Hand the device to ${this.playerFor(TAB_ROLE[el.dataset.tab as Tab])} · ${ROLE_INFO[TAB_ROLE[el.dataset.tab as Tab]].title}`, 'info');
         this.tab = el.dataset.tab as Tab;
-        if (this.tab === 'launch') this.maybeProgramEvent();
+        if (this.tab === 'comms') this.maybeProgramEvent();
         this.render();
         $('.panel-body')?.scrollTo({ top: 0 });
         break;
@@ -1047,7 +1231,12 @@ export class App {
         this.changed();
         break;
       case 'best': this.pickBest(); break;
-      case 'zoom': this.zoomTo(Number(el.dataset.val)); break;
+      case 'zoom': this.zoomTo(Number(el.dataset.val), true); break;
+      case 'next-window': this.pickBest(); break;
+      case 'history-on': this.setHistory(true); break;
+      case 'history-off': this.setHistory(false); break;
+      case 'validation': this.showValidation(); break;
+      case 'modal-close': $('#modal-root').innerHTML = ''; break;
       case 'unzoom': this.zoom = null; this.renderPanel(); break;
       case 'close-event': this.closeEvent(); break;
       case 'set':
@@ -1128,9 +1317,18 @@ export class App {
     });
   }
 
+  /** Load the NASA-style reference design and jump to the Launch step. */
+  loadNasaDesign(missionId: string, difficulty: Difficulty) {
+    const d = nasaPreset(missionId, difficulty);
+    this.startDesign(d, false);
+    this.tab = 'launch';
+    this.render();
+    toast(`Loaded a ${NASA_PRESET_NAME[missionId]}. Press and hold Launch, or change anything first.`, 'good');
+  }
+
   private maybeProgramEvent() {
     const d = this.design!;
-    if (d.programEvent || d.difficulty === 'easy') return;
+    if (d.programEvent || d.difficulty === 'easy' || d.difficulty === 'sandbox') return;
     const rand = mulberry32(Date.now() & 0xffffffff);
     const p = d.difficulty === 'hard' ? 1 : 0.5;
     if (rand() > p) {

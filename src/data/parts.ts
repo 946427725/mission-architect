@@ -17,7 +17,7 @@ export const POWER: PowerOption[] = [
   { id: 'solar-s', name: 'Small solar array (4 m²)', kind: 'solar', watts: 1200, decayPerYear: 0.01, mass: 30, costM: 8, devYears: 0, desc: 'Light and cheap. Sunlight weakens with distance squared - at Mars you get 43%, at Jupiter just 3.7%.' },
   { id: 'solar-m', name: 'Medium solar array (10 m²)', kind: 'solar', watts: 3000, decayPerYear: 0.01, mass: 70, costM: 18, devYears: 0, desc: 'A typical Mars orbiter array.' },
   { id: 'solar-l', name: 'Giant solar wings (60 m², Juno-class)', kind: 'solar', watts: 14000, decayPerYear: 0.012, mass: 340, costM: 45, devYears: 0.3, desc: 'Three 9-metre wings. Juno proved solar can work at Jupiter - but only just (~500 W).' },
-  { id: 'mmrtg', name: 'MMRTG nuclear battery', kind: 'rtg', watts: 110, decayPerYear: 0.025, mass: 45, costM: 110, devYears: 0.5, desc: 'Plutonium-238 heat → electricity, day and night, dust or no dust. Powers Curiosity and Perseverance.' },
+  { id: 'mmrtg', name: 'MMRTG nuclear battery', kind: 'rtg', watts: 110, decayPerYear: 0.03, mass: 45, costM: 110, devYears: 0.5, desc: 'Plutonium-238 heat → electricity, day and night, dust or no dust. Powers Curiosity and Perseverance.' },
   { id: 'gphs', name: 'GPHS-RTG nuclear battery', kind: 'rtg', watts: 245, decayPerYear: 0.02, mass: 56, costM: 150, devYears: 0.6, desc: 'The RTG that powered New Horizons, Cassini and Galileo. Works at any distance from the Sun.' },
   { id: 'gphs2', name: '2× GPHS-RTG', kind: 'rtg', watts: 490, decayPerYear: 0.02, mass: 112, costM: 300, devYears: 0.8, desc: 'Double the plutonium. Very expensive - NASA only has a small plutonium-238 supply.' },
 ];

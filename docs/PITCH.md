@@ -8,7 +8,7 @@ Mission Architect is a browser game where students design a complete space missi
 
 ## What makes it different
 1. **The physics is real and validated.** Our engine reproduces New Horizons' launch energy (158.8 vs 157.7), its Jupiter flyby distance (32.6 vs 32 Jupiter radii) and its Pluto arrival speed (13.79 vs 13.8 km/s).
-2. **Failure teaches.** No "wrong answer" screens: the game says *"At 39.5 AU your solar panels make 0.8 W"*, *"your rover froze in a dust storm, the same way Opportunity died in 2018"*.
+2. **Failure teaches.** No "wrong answer" screens: the game says *"At 32.9 AU sunlight is 0.09% of Earth's. You make 12 W but need 142 W on average - the spacecraft would freeze and shut down"* (giant solar wings on a New Horizons-style trip) and *"the solar panels could not keep the heaters on and the rover froze - the same way Opportunity died in 2018"*.
 3. **There is no single correct design.** Solar vs RTG, airbags vs sky crane, direct vs gravity assist, cheap rocket vs margin all work in different combinations.
 4. **Real collaboration.** Four roles with conflicting personal goals; any change resets everyone's sign-off.
 
