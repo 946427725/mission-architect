@@ -22,6 +22,8 @@ import { NASA_PRESET_NAME, nasaPreset } from '../game/presets';
 import { HISTORY } from '../game/history';
 import { directTransfer as directTr, jgaTransfer as jgaTr } from '../physics/porkchop';
 import { Hangar } from '../hangar/hangar';
+import { Tutorial, wasTrained } from './tutorial';
+import { settings, setSetting } from './settings';
 
 type Screen = 'title' | 'select' | 'hangar' | 'design' | 'flight' | 'report';
 type MeterSpec = { id: string; tab: Tab; label: string; value: number; fmt: (v: number) => string; unit: string; of: string; fill: number | null; st: Status };
@@ -103,12 +105,14 @@ export class App {
   private history = false;
   private historyGrids = new Map<string, PorkchopGrid>();
   readonly hangar: Hangar;
+  readonly tutorial: Tutorial;
   /** 'route' = the launch-window console opened from the high bay; 'pro' = the full engineer panel. */
   routeMode: 'route' | 'pro' | null = null;
 
   constructor() {
     this.view = new SolarSystemView($('#space'));
     this.hangar = new Hangar($('#hangar'), this);
+    this.tutorial = new Tutorial(this);
     this.view.setDate(this.idleJD);
     this.view.setHighlight(['earth']);
     this.view.frameSystem(7);
@@ -310,9 +314,37 @@ export class App {
         <button class="btn ghost" data-act="menu-pro">Engineer view (all settings on one sheet)</button>
         <button class="btn ghost" data-act="howto-menu">How it works</button>
         <button class="btn ghost" data-act="validation">Data &amp; validation</button>
+        <button class="btn ghost" data-act="settings">Settings (language, colours, motion)</button>
         <button class="btn ghost" data-act="sound">${on ? 'Sound: on' : 'Sound: off'}</button>
         <button class="btn ghost" data-act="home">Quit to title</button>
       </div></div>`);
+  }
+
+  settingsHTML(): string {
+    const seg = (act: string, cur: string, opts: [string, string][]) =>
+      `<div class="set-seg" role="group">${opts.map(([v, l]) => `<button class="${cur === v ? 'on' : ''}" data-act="${act}" data-val="${v}" aria-pressed="${cur === v}"${act === 'opt-lang' ? ' translate="no"' : ''}>${l}</button>`).join('')}</div>`;
+    return `<div class="modal-card set-card"><button class="close" data-act="modal-close" aria-label="Close">×</button>
+      <div class="eyebrow">Settings</div><h2>Make it work for you</h2>
+      <div class="set-row"><div class="set-l"><b>Language</b><small>Every screen, button and radio call</small></div>${seg('opt-lang', settings.lang, [['en', 'English'], ['uz', "O'zbekcha"]])}</div>
+      <div class="set-row"><div class="set-l"><b>Colours</b><small>Colour-blind safe: blue = GO, yellow = check, orange = NO-GO. Symbols ✓ ! ✕ always show.</small></div>${seg('opt-cb', settings.colorblind ? '1' : '0', [['0', 'Standard'], ['1', 'Colour-blind safe']])}</div>
+      <div class="set-row"><div class="set-l"><b>Motion</b><small>Reduced turns off camera shake, head bob and animations.</small></div>${seg('opt-motion', settings.reduceMotion ? '1' : '0', [['0', 'Full'], ['1', 'Reduced']])}</div>
+      <div class="set-row"><div class="set-l"><b>Sound</b><small>Synthesized engine, radio and music</small></div>${seg('opt-sound', sound.muted ? '0' : '1', [['1', 'On'], ['0', 'Off']])}</div>
+    </div>`;
+  }
+
+  private openSettings() {
+    this.openModal(this.settingsHTML());
+  }
+
+  /** Leave whatever is running and go to the mission select. */
+  quitToSelect() {
+    this.flight?.stop();
+    $('#modal-root').innerHTML = '';
+    this.routeMode = null;
+    this.view.showTransfer(null);
+    this.view.setCraftAt(null);
+    this.view.setCloseupModel(null);
+    this.go('select');
   }
 
   /** After the pad cinematic: straight into the flight (no second countdown). */
@@ -1144,8 +1176,13 @@ export class App {
       <div class="play-hint"><span>Real NASA/JPL orbits</span><span>1–4 players</span><span>Mars · Jupiter · Pluto</span></div>
       <div class="cta on-space">
         <button class="btn big" data-act="to-select">Play</button>
+        <button class="btn ${wasTrained() ? 'ghost' : 'train'}" data-act="tutorial">${wasTrained() ? 'Training' : 'New? Training'}<small>4 min</small></button>
         <button class="btn ghost" data-act="howto">How it works</button>
         <button class="btn ghost" data-act="validation">Data &amp; validation</button>
+      </div>
+      <div class="title-opts">
+        <div class="lang-pick" role="group" aria-label="Language">${(['en', 'uz'] as const).map((l) => `<button class="${settings.lang === l ? 'on' : ''}" data-act="opt-lang" data-val="${l}" translate="no" aria-pressed="${settings.lang === l}">${l === 'en' ? 'English' : "O'zbekcha"}</button>`).join('')}</div>
+        <button class="btn ghost small" data-act="settings">Settings</button>
       </div>
       ${lb.length ? `<div class="mini-lb"><h4>Top missions on this device</h4>${lb.map((e) => `<div><span>${esc(e.name)}</span><span>${esc(missionById(e.missionId).name)}</span><b>${e.score}</b></div>`).join('')}</div>` : ''}
       <p class="credit">Built for NASA Space Apps 2026 · planet data: NASA/JPL Solar System Dynamics</p>
@@ -1413,6 +1450,7 @@ export class App {
     switch (act) {
       case 'home':
         {
+          this.tutorial.stop();
           this.flight?.stop();
           $('#modal-root').innerHTML = '';
           this.routeMode = null;
@@ -1425,6 +1463,24 @@ export class App {
         }
         break;
       case 'to-select': this.go('select'); break;
+      case 'tutorial': this.tutorial.start(); break;
+      case 'settings': this.openSettings(); break;
+      case 'opt-lang':
+        setSetting('lang', el.dataset.val === 'uz' ? 'uz' : 'en');
+        this.afterSettings();
+        break;
+      case 'opt-cb':
+        setSetting('colorblind', el.dataset.val === '1');
+        this.afterSettings();
+        break;
+      case 'opt-motion':
+        setSetting('reduceMotion', el.dataset.val === '1');
+        this.afterSettings();
+        break;
+      case 'opt-sound':
+        if ((el.dataset.val === '1') === sound.muted) this.action('sound', el);
+        this.afterSettings();
+        break;
       case 'to-bay': this.backToHangar(); break;
       case 'menu-pro': $('#modal-root').innerHTML = ''; this.openPro(); break;
       case 'howto-menu': $('#modal-root').innerHTML = `<div class="modal" role="dialog">${this.howtoHTML().replace('howto-close', 'modal-close')}</div>`; break;
@@ -1541,9 +1597,23 @@ export class App {
         if (this.screen === 'design') toast('Press and hold the button to launch', 'info');
         break;
       default:
+        if (act.startsWith('tut-') && this.tutorial.action(act)) return;
         if (this.hangar.action(act, el)) return;
         this.flight?.action(act, el);
         reportAction(this, act, el);
+    }
+  }
+
+  /** Redraw what depends on settings (modal state, chart colours, title buttons). */
+  private afterSettings() {
+    const modal = document.querySelector('#modal-root .set-card');
+    if (modal) this.openSettings();
+    this.porkKey = '';
+    if (this.screen === 'title' || this.screen === 'select') this.renderOverlay();
+    if (this.screen === 'design') this.renderPanel();
+    if (this.screen === 'hangar') {
+      this.hangar.renderPanel();
+      this.hangar.onDesignChanged(false);
     }
   }
 

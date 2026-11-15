@@ -40,3 +40,13 @@ export function nasaPreset(missionId: string, difficulty: Difficulty): Design {
   d.propellantKg = autoPropellant(d);
   return d;
 }
+
+/** The 4-minute training mission: NASA's Mars rover with two jobs left for the
+ *  player (pick a launch date; the rover is too heavy for airbags, so install
+ *  the sky crane). */
+export function tutorialDesign(): Design {
+  const d = nasaPreset('mars', 'easy');
+  d.transfer = null;
+  d.landingId = 'airbags';
+  return d;
+}

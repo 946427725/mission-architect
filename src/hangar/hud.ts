@@ -2,6 +2,7 @@
 // interaction prompt, station panel, floating station labels, minimap and the
 // on-screen joystick for touch devices.
 import { esc, toast } from '../ui/dom';
+import { settings } from '../ui/settings';
 
 export type St = 'ok' | 'warn' | 'fail';
 
@@ -245,7 +246,7 @@ export class Hud {
       <button class="gr-x" data-act="h-radio-x" aria-label="Dismiss">×</button>`;
     this.radioEl.classList.add('show');
     const p = this.radioEl.querySelector('p')!;
-    let i = 0;
+    let i = settings.reduceMotion ? s.text.length - 2 : 0;
     this.typing = window.setInterval(() => {
       i += 2;
       p.textContent = s.text.slice(0, i);

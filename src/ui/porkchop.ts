@@ -1,3 +1,4 @@
+import { settings } from './settings';
 // Interactive porkchop plot: launch date (x) vs flight time (y), coloured by
 // launch energy C3. Hover previews the trajectory, click selects it.
 
@@ -19,9 +20,10 @@ const PAD = { l: 44, r: 10, t: 10, b: 30 };
 
 function colormap(t: number): [number, number, number] {
   // deep blue -> cyan -> green -> yellow -> orange -> red
-  const stops: [number, number, number][] = [
-    [11, 52, 92], [24, 104, 128], [56, 150, 120], [150, 182, 70], [227, 162, 26], [211, 38, 58], [236, 178, 178],
-  ];
+  const stops: [number, number, number][] = settings.colorblind
+    ? // cividis-like: dark blue -> grey -> yellow, readable with every type of colour blindness
+      [[0, 34, 78], [38, 66, 110], [86, 98, 114], [124, 123, 120], [166, 156, 116], [212, 192, 96], [253, 232, 70]]
+    : [[11, 52, 92], [24, 104, 128], [56, 150, 120], [150, 182, 70], [227, 162, 26], [211, 38, 58], [236, 178, 178]];
   const x = Math.min(0.9999, Math.max(0, t)) * (stops.length - 1);
   const i = Math.floor(x);
   const f = x - i;
@@ -186,14 +188,14 @@ export class PorkchopView {
       const y = yOf(this.overlay.maxTofDays);
       ctx.fillStyle = 'rgba(236,237,233,0.72)';
       ctx.fillRect(p.x, p.y, p.w, Math.max(0, y - p.y));
-      ctx.strokeStyle = '#d3263a';
+      ctx.strokeStyle = settings.colorblind ? '#c75400' : '#d3263a';
       ctx.setLineDash([4, 3]);
       ctx.beginPath();
       ctx.moveTo(p.x, y);
       ctx.lineTo(p.x + p.w, y);
       ctx.stroke();
       ctx.setLineDash([]);
-      ctx.fillStyle = '#d3263a';
+      ctx.fillStyle = settings.colorblind ? '#c75400' : '#d3263a';
       ctx.font = '600 10px "IBM Plex Mono", monospace';
       ctx.fillText('TOO LONG', p.x + p.w - 64, y - 5);
     }

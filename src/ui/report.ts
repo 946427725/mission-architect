@@ -12,6 +12,7 @@ import { BODIES } from '../physics/constants';
 import { formatDuration, formatJD } from '../physics/time';
 import type { App } from './app';
 import { $, esc, fmtInt, fmtKg, fmtW, pct, statusIcon, toast } from './dom';
+import { statusColor } from './settings';
 
 const STEP_LABEL: Record<Tab, string> = { trajectory: 'Flight Dynamics desk', spacecraft: 'power rack', science: 'Science Lab', comms: 'antenna stands', launch: 'rocket table' };
 
@@ -100,7 +101,7 @@ export function renderReport(app: App): string {
     : `<p class="note">We re-flew your mission once for every possible single change. None scored higher: this design is already at its best for this launch and this luck.</p>`;
 
   const ACC: Record<string, string> = { mars: '#ff7b47', jupiter: '#f2b56b', pluto: '#9cc3ff' };
-  const OUT: Record<string, string> = { success: '#4fe08c', partial: '#ffc23d', failure: '#ff5c5c' };
+  const OUT: Record<string, string> = { success: statusColor('ok'), partial: statusColor('warn'), failure: statusColor('fail') };
   const frac = Math.min(1.5, sim.scienceFraction) / 1.5;
   const R = 52;
   const C = 2 * Math.PI * R;

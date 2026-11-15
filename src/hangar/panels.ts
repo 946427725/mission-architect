@@ -14,6 +14,7 @@ import { propagate } from '../physics/kepler';
 import { formatDuration, formatJD } from '../physics/time';
 import type { App } from '../ui/app';
 import { esc, fmtInt } from '../ui/dom';
+import { statusColor } from '../ui/settings';
 import { Gauge, St, Task } from './hud';
 import { BuiltStation, LiveScreen, StationId, stationById } from './stations';
 
@@ -413,9 +414,10 @@ const FONT = '"IBM Plex Mono", ui-monospace, monospace';
 const DISP = '"Archivo", "Helvetica Neue", Arial, sans-serif';
 const BG = '#07111c';
 const CY = '#4cc9ff';
-const AMB = '#f2b43a';
-const GRN = '#58e08a';
-const RED = '#ff5a52';
+// status colours follow the colour-blind setting (read at draw time)
+const GRN_ = () => statusColor('ok');
+const AMB_ = () => statusColor('warn');
+const RED_ = () => statusColor('fail');
 
 function frame(s: LiveScreen, title: string) {
   const { ctx, canvas } = s;
@@ -454,7 +456,7 @@ function txt(ctx: CanvasRenderingContext2D, s: string, x: number, y: number, siz
   ctx.textAlign = 'left';
 }
 
-const stColor = (s: St) => (s === 'ok' ? GRN : s === 'warn' ? AMB : RED);
+const stColor = (s: St) => (s === 'ok' ? GRN_() : s === 'warn' ? AMB_() : RED_());
 
 function drawStatus(mesh: THREE.Mesh, d: Design, ev: Evaluation) {
   let s = mesh.userData.screen as LiveScreen | undefined;
@@ -498,7 +500,7 @@ function drawStatus(mesh: THREE.Mesh, d: Design, ev: Evaluation) {
     txt(ctx, st === 'fail' ? 'NO-GO' : st === 'warn' ? 'CHECK' : 'GO', x + w / 2, 270, 58, stColor(st), 800, DISP, 'center');
   });
   const tr = d.transfer;
-  txt(ctx, ev.launchable ? '● GO FOR LAUNCH' : '● HOLD', 40, 395, 40, ev.launchable ? GRN : AMB, 700, FONT);
+  txt(ctx, ev.launchable ? '● GO FOR LAUNCH' : '● HOLD', 40, 395, 40, ev.launchable ? GRN_() : AMB_(), 700, FONT);
   txt(ctx, `${rocketById(d.rocketId).name}${tr ? ` · ${formatJD(tr.launchJD)} · C3 ${tr.c3.toFixed(1)}` : ' · no launch date'}`, 1400, 395, 34, '#b7c6d4', 500, FONT, 'right');
   s.tex.needsUpdate = true;
 }
@@ -536,7 +538,7 @@ function drawFlight(s: LiveScreen, d: Design, ev: Evaluation) {
     ctx.stroke();
   }
   if (tr) {
-    ctx.strokeStyle = AMB;
+    ctx.strokeStyle = AMB_();
     ctx.lineWidth = 4;
     ctx.beginPath();
     let firstPt = true;
@@ -577,7 +579,7 @@ function drawFlight(s: LiveScreen, d: Design, ev: Evaluation) {
       txt(ctx, b, x0, 258 + i * 150, 54, '#ffffff', 700, DISP);
     });
   } else {
-    txt(ctx, 'NO TRAJECTORY', x0, 300, 60, AMB, 800, DISP);
+    txt(ctx, 'NO TRAJECTORY', x0, 300, 60, AMB_(), 800, DISP);
     txt(ctx, 'Open the launch-window chart', x0, 370, 32, '#b7c6d4', 500);
     txt(ctx, 'at this desk to pick a date.', x0, 412, 32, '#b7c6d4', 500);
   }
@@ -590,7 +592,7 @@ function drawOps(s: LiveScreen, d: Design, ev: Evaluation) {
   const total = ev.cost.total;
   const cap = ev.cost.cap;
   const scale = Math.max(total, cap) * 1.05;
-  txt(ctx, `$${fmtM(total)}`, 60, 210, 96, total > cap ? RED : '#ffffff', 800, DISP);
+  txt(ctx, `$${fmtM(total)}`, 60, 210, 96, total > cap ? RED_() : '#ffffff', 800, DISP);
   txt(ctx, `of $${fmtM(cap)} budget`, 60, 262, 34, '#8fa6ba', 500);
   const items = ev.cost.items.filter(([, v]) => v > 0.5).sort((a, b) => b[1] - a[1]);
   const cols = ['#4cc9ff', '#f2b43a', '#58e08a', '#c58cff', '#ff8a5c', '#7fd7d0'];
@@ -602,7 +604,7 @@ function drawOps(s: LiveScreen, d: Design, ev: Evaluation) {
     ctx.fillRect(x, 300, Math.max(0, w - 3), 70);
     x += w;
   });
-  ctx.fillStyle = RED;
+  ctx.fillStyle = RED_();
   ctx.fillRect(60 + (cap / scale) * bw - 3, 285, 6, 100);
   items.slice(0, 6).forEach(([k, v], i) => {
     const yy = 450 + (i % 3) * 64;
@@ -612,7 +614,7 @@ function drawOps(s: LiveScreen, d: Design, ev: Evaluation) {
     txt(ctx, k.length > 26 ? k.slice(0, 25) + '…' : k, xx + 36, yy - 6, 30, '#d7e3ee', 500);
     txt(ctx, `$${fmtM(v)}`, xx + W / 2 - 110, yy - 6, 30, '#ffffff', 700, FONT, 'right');
   });
-  txt(ctx, `DATA HOME ${Math.round(ev.data.fraction * 100)}%`, 60, 840, 40, ev.data.fraction >= 0.95 ? GRN : AMB, 700);
+  txt(ctx, `DATA HOME ${Math.round(ev.data.fraction * 100)}%`, 60, 840, 40, ev.data.fraction >= 0.95 ? GRN_() : AMB_(), 700);
   txt(ctx, `DSN ${d.dsnDish} m · ${d.dsnHours} h/day · ${formatRate(ev.data.rateBps)}`, W - 60, 840, 34, '#b7c6d4', 500, FONT, 'right');
 }
 
@@ -628,7 +630,7 @@ function drawScience(s: LiveScreen, d: Design, ev: Evaluation) {
   const f = Math.min(1.5, pts / m.scienceTarget) / 1.5;
   ctx.fillStyle = 'rgba(255,255,255,0.08)';
   ctx.fillRect(50, 250, W - 100, 60);
-  ctx.fillStyle = pts >= m.scienceTarget ? GRN : AMB;
+  ctx.fillStyle = pts >= m.scienceTarget ? GRN_() : AMB_();
   ctx.fillRect(50, 250, (W - 100) * f, 60);
   ctx.fillStyle = '#fff';
   ctx.fillRect(50 + (W - 100) / 1.5 - 2, 236, 4, 88);
@@ -648,7 +650,7 @@ function drawScience(s: LiveScreen, d: Design, ev: Evaluation) {
     txt(ctx, n, x + 18, y - 3, 30, CY, 600);
     x += w + 14;
   }
-  if (!names.length) txt(ctx, 'No instruments installed', 50, 460, 32, AMB, 600);
+  if (!names.length) txt(ctx, 'No instruments installed', 50, 460, 32, AMB_(), 600);
 }
 
 function drawOrbit(s: LiveScreen, d: Design, ev: Evaluation) {
@@ -674,7 +676,7 @@ function drawOrbit(s: LiveScreen, d: Design, ev: Evaluation) {
   }
   JUPITER_ORBITS.forEach((o, i) => {
     const on = d.orbitId === o.id;
-    ctx.strokeStyle = on ? AMB : 'rgba(255,255,255,0.28)';
+    ctx.strokeStyle = on ? AMB_() : 'rgba(255,255,255,0.28)';
     ctx.lineWidth = on ? 6 : 3;
     ctx.beginPath();
     if (o.id === 'tour') ctx.ellipse(cx + 40, cy, 300, 120, 0, 0, Math.PI * 2);
@@ -691,9 +693,9 @@ function drawOrbit(s: LiveScreen, d: Design, ev: Evaluation) {
     txt(ctx, `${cur.dosePerOrbit} krad per orbit`, W * 0.64, 340, 34, '#b7c6d4', 500);
     if (ev.radiation) {
       txt(ctx, `${Math.round(ev.radiation.plannedOrbits)} close passes planned`, W * 0.64, 420, 38, CY, 600);
-      txt(ctx, `electronics survive ${Math.round(Math.min(999, ev.radiation.maxOrbits))}`, W * 0.64, 470, 38, ev.radiation.maxOrbits >= ev.radiation.plannedOrbits ? GRN : RED, 600);
+      txt(ctx, `electronics survive ${Math.round(Math.min(999, ev.radiation.maxOrbits))}`, W * 0.64, 470, 38, ev.radiation.maxOrbits >= ev.radiation.plannedOrbits ? GRN_() : RED_(), 600);
     }
-    if (d.transfer) txt(ctx, `braking burn ${fmtInt(ev.dv.insertion * 1000)} m/s`, W * 0.64, 550, 38, AMB, 600);
+    if (d.transfer) txt(ctx, `braking burn ${fmtInt(ev.dv.insertion * 1000)} m/s`, W * 0.64, 550, 38, AMB_(), 600);
   }
 }
 
@@ -709,7 +711,7 @@ function drawFuel(s: LiveScreen, d: Design, ev: Evaluation) {
   const sc = Math.max(need * 1.5, have * 1.05, 1e-6);
   ctx.fillStyle = 'rgba(255,255,255,0.1)';
   ctx.fillRect(24, 160, W - 48, 40);
-  ctx.fillStyle = have >= need ? GRN : RED;
+  ctx.fillStyle = have >= need ? GRN_() : RED_();
   ctx.fillRect(24, 160, ((W - 48) * have) / sc, 40);
   ctx.fillStyle = '#fff';
   ctx.fillRect(24 + ((W - 48) * need) / sc - 2, 150, 4, 60);

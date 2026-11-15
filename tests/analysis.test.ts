@@ -95,3 +95,17 @@ describe('Mission Control decisions', () => {
     expect(lostSkip).toBeGreaterThanOrEqual(lostNow);
   });
 });
+
+import { tutorialDesign } from '../src/game/presets';
+
+describe('training mission', () => {
+  it('starts with exactly two jobs: a launch date and a landing system for the heavy rover', () => {
+    const ev = evaluate(tutorialDesign());
+    const failing = ev.checks.filter((c) => c.status === 'fail').map((c) => c.id).sort();
+    expect(failing).toEqual(['rover', 'traj']);
+  });
+  it('is ready to launch once the player does both jobs', () => {
+    const d = { ...tutorialDesign(), landingId: 'skycrane', transfer: nasaPreset('mars', 'easy').transfer };
+    expect(evaluate(d).launchable).toBe(true);
+  });
+});

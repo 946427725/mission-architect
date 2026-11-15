@@ -13,6 +13,7 @@ import { ROLE_INFO } from '../game/simulate';
 import { Design, RoleId, missionOf } from '../game/state';
 import type { App } from '../ui/app';
 import { sound } from '../ui/sound';
+import { settings } from '../ui/settings';
 import { buildRealCraft, partCenter, setPartVisible } from './craft';
 import { CRAFT_POS, Collider, HighBay, INSTALL_SPOT, RING_R, ROOM, SPAWN, buildHighBay } from './env';
 import { Engineer } from './engineer';
@@ -241,6 +242,11 @@ export class Hangar {
     return this.app.design;
   }
 
+  /** Where the active player stands (for the training mission). */
+  playerPos(): THREE.Vector3 {
+    return this.walkers[this.active]?.pos ?? new THREE.Vector3();
+  }
+
   /** Preview a mission on the title/select screens (no player). */
   preview(d: Design) {
     this.ensureMission(d);
@@ -267,7 +273,9 @@ export class Hangar {
       const m = missionOf(d);
       const first = tasksFor(d, this.app.ev!, this.ctx())[0];
       this.hud.say(
-        d.difficulty === 'sandbox'
+        this.app.tutorial?.active
+          ? 'Welcome to training. This is a Mars rover like Perseverance, almost ready to fly. Follow the card at the top of the screen.'
+          : d.difficulty === 'sandbox'
           ? `Welcome to the high bay. Sandbox mode: the budget is huge and nothing random happens. Build anything you like for ${m.name}.`
           : `Welcome to the high bay. This is ${m.name}. The team left a starter spacecraft on the stand, but it is not ready to fly. Work down the task list on the left${first ? `, starting with ${first.label.toLowerCase()}` : ''}.`,
         'FLIGHT DIRECTOR',
@@ -1782,7 +1790,7 @@ export class Hangar {
       this.fpPitch = damp(this.fpPitch, Math.atan2(d.y, Math.hypot(d.x, d.z)), 5, dt);
     }
     // gentle head bob while walking
-    const walk = Math.min(1, speed / 1.6);
+    const walk = settings.reduceMotion ? 0 : Math.min(1, speed / 1.6);
     this.bob += dt * speed * 4.3;
     eye.y += Math.sin(this.bob * 2) * 0.022 * walk;
     const rx = -Math.cos(this.fpYaw);

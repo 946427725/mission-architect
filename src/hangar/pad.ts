@@ -10,6 +10,7 @@ import { rocketById } from '../data/rockets';
 import { Design, missionOf } from '../game/state';
 import { formatJD } from '../physics/time';
 import { sound } from '../ui/sound';
+import { settings } from '../ui/settings';
 import { M, at, box, cyl, rod, shade, sph, v3 } from './kit';
 import { buildRocket } from './rockets3d';
 import { concreteSet, groundTexture, puffTexture } from './tex';
@@ -453,7 +454,7 @@ export class LaunchPad {
 
     // ---- camera: wide dawn shot -> low angle at the pad -> long-lens tracking
     const cam = this.camera;
-    const shake = power * Math.max(0, 1 - this.y / 250) * 0.35;
+    const shake = settings.reduceMotion ? 0 : power * Math.max(0, 1 - this.y / 250) * 0.35;
     const mid = 6 + H * 0.5;
     if (t < 4.5) {
       const k = t / 4.5;
