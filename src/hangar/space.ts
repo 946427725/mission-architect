@@ -947,6 +947,8 @@ export class SpaceCinema {
     if (this.earth) {
       const dE = 6500 + p * 30000;
       this.earth.position.copy(V(0.2, -0.15, 1).normalize().multiplyScalar(dE));
+      // equator toward the camera (the real map would otherwise show Antarctica)
+      this.earth.rotation.set(0.15, this.earth.rotation.y + dt * 0.02, 0.1);
       this.earth.visible = p < 0.35;
     }
     if (this.target) {
