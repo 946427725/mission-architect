@@ -6,7 +6,7 @@
 - [ ] Open the URL in an incognito window and on a phone. Try `?mission=mars&preset=nasa&seed=1&speed=4`.
 
 ## 1b. Windows app (best version for judges)
-- [ ] GitHub → Releases → *Draft a new release* → tag `v1.0.2` → attach `desktop/dist-exe/MissionArchitect-1.0.2-Windows-portable.exe` → Publish.
+- [ ] GitHub → Releases → open the saved draft *Mission Architect 1.0.3* → attach `desktop/dist-exe/MissionArchitect-1.0.3-Windows-portable.exe` → Publish.
 - [ ] Download it on another Windows PC and run it once (More info → Run anyway).
 - [ ] Put the "Two ways to play" text from `docs/PITCH.md` on the project page and a pitch slide.
 

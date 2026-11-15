@@ -38,8 +38,8 @@ npm run build:exe     # Windows portable app in desktop/dist-exe/ (run `npm inst
 ```
 
 ### Public deployment
-- **Vercel (main host):** import the GitHub repository in Vercel. `vercel.json` already sets the build (`npm run build`, output `dist`).
-- **GitHub Pages (backup):** Settings → Pages → Source: GitHub Actions, then Actions → "Deploy to GitHub Pages" → Run workflow.
+- **GitHub Pages (live):** https://946427725.github.io/mission-architect/ , deployed by `.github/workflows/pages.yml` on every push to `main`.
+- **Vercel (optional mirror):** import the repository in Vercel; `vercel.json` already sets the build (`npm run build`, output `dist`).
 - Every push runs the tests and a production build (`.github/workflows/ci.yml`).
 
 URL options: `?mission=mars|jupiter|pluto`, `&difficulty=easy|normal|hard|sandbox`, `&preset=nasa`, `&seed=N` (repeatable random events), `&speed=1|2|4`. Share links (`#d-…`) encode a whole design.
