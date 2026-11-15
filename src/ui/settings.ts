@@ -30,7 +30,7 @@ function load(): Settings {
     if (q.get('cb') === '1') s.colorblind = true;
     if (q.get('motion') === 'reduce') s.reduceMotion = true;
   }
-  if (s.lang !== 'en' && s.lang !== 'uz') s.lang = 'en';
+  s.lang = 'en'; // English only
   return s;
 }
 

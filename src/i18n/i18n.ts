@@ -11,7 +11,6 @@
 // a part without words is <a/>), so the Uzbek word order can differ.
 // Canvas text and the radio typewriter call tr() directly.
 import { onSettings, settings } from '../ui/settings';
-import uzDict from './uz.json';
 
 type Dict = Record<string, string>;
 interface Pattern {
@@ -341,7 +340,7 @@ function revert() {
 async function loadDict(): Promise<void> {
   if (dict) return;
   // bundled with the game (the one-file Windows build cannot load extra files)
-  dict = uzDict as Dict;
+  dict = {};
   build(dict);
 }
 

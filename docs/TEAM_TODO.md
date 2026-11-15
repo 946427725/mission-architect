@@ -4,7 +4,7 @@
 - [x] Public GitHub repo and website: https://946427725.github.io/mission-architect/ (deploys on every push to main).
 - [x] 30-second demo video (`media/MissionArchitect-demo-30s.mp4`, AI voice disclosed in the video and its metadata).
 - [x] Project page text: `docs/PROJECT_PAGE.md`. Tester prompt for friends: `docs/TESTER_PROMPT.md`.
-- [x] Training mission, English/Uzbek, colour-blind palette, reduced motion, 21 automated tests.
+- [x] Training mission, colour-blind palette, reduced motion, 21 automated tests.
 - [x] Pitch deck (7 slides, English).
 
 ## Still to do (team leader)

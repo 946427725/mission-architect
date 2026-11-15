@@ -45,7 +45,6 @@ TypeScript, Three.js, Vite, Vitest, Google Fonts (Archivo, IBM Plex Mono). All s
 
 ## For every student
 - A 4-minute guided training mission ("Show me" does any step for a stuck player).
-- English and Uzbek, switchable at any time: our team is from Uzbekistan.
 - Colour-blind safe palette (blue GO, orange NO-GO, symbols always shown) and reduced motion.
 
 ## Future work

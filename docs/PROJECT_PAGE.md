@@ -11,9 +11,9 @@ Mission Architect
 
 ## High-Level Project Summary
 
-Mission Architect is a free 3D game in which students, alone or as a team of four, design, manage and fly a real interplanetary mission. A 4-minute training mission teaches the basics, and the whole game works in English and Uzbek. In first person, they walk around a spacecraft clean room, pick up real hardware (nuclear batteries, solar arrays, dishes, attitude control, 24 instruments modelled on NASA instruments) and install it. Live gauges show what each part does to mass, power, Δv, budget, data and science. They choose a launch window on a chart where every point is a trajectory computed from NASA JPL planet positions, then pick a rocket (including ESA's Ariane 64 and JAXA's H3).
+Mission Architect is a free 3D game in which students, alone or as a team of four, design, manage and fly a real interplanetary mission. A 4-minute training mission teaches the basics. In first person, they walk around a spacecraft clean room, pick up real hardware (nuclear batteries, solar arrays, dishes, attitude control, 24 instruments modelled on NASA instruments) and install it. Live gauges show what each part does to mass, power, Δv, budget, data and science. They choose a launch window on a chart where every point is a trajectory computed from NASA JPL planet positions, then pick a rocket (including ESA's Ariane 64 and JAXA's H3).
 
-They then fly the spacecraft they built in 3D, from liftoff to landing, making Mission Control decisions modelled on real ones (Juno's engine valve, New Horizons' hazard search). A report explains why the mission worked or failed and compares the design with NASA's real missions. The physics is validated against Mars 2020 and New Horizons. It runs in any browser, in English or Uzbek, with colour-blind safe colours and reduced motion for players who need them.
+They then fly the spacecraft they built in 3D, from liftoff to landing, making Mission Control decisions modelled on real ones (Juno's engine valve, New Horizons' hazard search). A report explains why the mission worked or failed and compares the design with NASA's real missions. The physics is validated against Mars 2020 and New Horizons. It runs in any browser, with colour-blind safe colours and reduced motion for players who need them.
 
 ## Link to Project Demo
 
@@ -72,7 +72,7 @@ Each call re-flies the mission with the same luck, so the player sees exactly wh
 
 **Training mission.** A guided 4-minute first flight: the coach card teaches walking, picking a launch date, installing a sky crane for a rover that is too heavy for airbags, launching and making a Mission Control call. A "Show me" button does any step for a player who is stuck.
 
-**For every student.** The whole game (menus, station panels, radio calls, flight captions, the report) can be switched between English and Uzbek at any time, so students in Uzbekistan, where our team is from, can learn in their own language. Settings add a colour-blind safe palette (blue GO, orange NO-GO; the symbols ✓ ! ✕ always show) and reduced motion (no camera shake, head bob or animations).
+**For every student.** Settings add a colour-blind safe palette (blue GO, orange NO-GO; the symbols ✓ ! ✕ always show) and reduced motion (no camera shake, head bob or animations).
 
 **Team play.** Up to four players share one design. Each player has a role (Flight Dynamics, Spacecraft Systems, Principal Investigator, Ground & Budget), their own stations, a personal goal that pulls against the others, and their own Mission Control calls. Bonus points go to teams in which everyone meets their goal.
 
@@ -96,7 +96,7 @@ Each call re-flies the mission with the same luck, so the player sees exactly wh
 - Every failure is explained, and the report points to the station that fixes it.
 - It is free, needs no installation or account, and runs in any modern browser.
 - A teacher guide is included.
-- A 4-minute training mission, an Uzbek translation of the whole game, a colour-blind safe palette and reduced motion widen who can play.
+- A 4-minute training mission, a colour-blind safe palette and reduced motion widen who can play.
 
 **What we hope to achieve.** A classroom-ready game in which any student, anywhere, can feel what NASA and partner-agency mission engineers do: balance mass, power, money and risk, and live with the consequences.
 

@@ -17,7 +17,6 @@ function webglAvailable() {
 if (!webglAvailable()) {
   document.body.innerHTML = '<div style="padding:40px;font-family:sans-serif;color:#fff;background:#04060d;height:100vh">Mission Architect needs WebGL. Please try a recent version of Chrome, Edge, Firefox or Safari.</div>';
 } else {
-  // the Uzbek dictionary loads first (only when Uzbek is chosen), then the game starts
   initI18n().then(() => {
     const app = new App();
     (window as unknown as { missionArchitect: App }).missionArchitect = app;

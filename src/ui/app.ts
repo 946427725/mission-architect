@@ -314,7 +314,7 @@ export class App {
         <button class="btn ghost" data-act="menu-pro">Engineer view (all settings on one sheet)</button>
         <button class="btn ghost" data-act="howto-menu">How it works</button>
         <button class="btn ghost" data-act="validation">Data &amp; validation</button>
-        <button class="btn ghost" data-act="settings">Settings (language, colours, motion)</button>
+        <button class="btn ghost" data-act="settings">Settings (colours, motion, sound)</button>
         <button class="btn ghost" data-act="sound">${on ? 'Sound: on' : 'Sound: off'}</button>
         <button class="btn ghost" data-act="home">Quit to title</button>
       </div></div>`);
@@ -325,7 +325,6 @@ export class App {
       `<div class="set-seg" role="group">${opts.map(([v, l]) => `<button class="${cur === v ? 'on' : ''}" data-act="${act}" data-val="${v}" aria-pressed="${cur === v}"${act === 'opt-lang' ? ' translate="no"' : ''}>${l}</button>`).join('')}</div>`;
     return `<div class="modal-card set-card"><button class="close" data-act="modal-close" aria-label="Close">×</button>
       <div class="eyebrow">Settings</div><h2>Make it work for you</h2>
-      <div class="set-row"><div class="set-l"><b>Language</b><small>Every screen, button and radio call</small></div>${seg('opt-lang', settings.lang, [['en', 'English'], ['uz', "O'zbekcha"]])}</div>
       <div class="set-row"><div class="set-l"><b>Colours</b><small>Colour-blind safe: blue = GO, yellow = check, orange = NO-GO. Symbols ✓ ! ✕ always show.</small></div>${seg('opt-cb', settings.colorblind ? '1' : '0', [['0', 'Standard'], ['1', 'Colour-blind safe']])}</div>
       <div class="set-row"><div class="set-l"><b>Motion</b><small>Reduced turns off camera shake, head bob and animations.</small></div>${seg('opt-motion', settings.reduceMotion ? '1' : '0', [['0', 'Full'], ['1', 'Reduced']])}</div>
       <div class="set-row"><div class="set-l"><b>Sound</b><small>Synthesized engine, radio and music</small></div>${seg('opt-sound', sound.muted ? '0' : '1', [['1', 'On'], ['0', 'Off']])}</div>
@@ -1181,7 +1180,6 @@ export class App {
         <button class="btn ghost" data-act="validation">Data &amp; validation</button>
       </div>
       <div class="title-opts">
-        <div class="lang-pick" role="group" aria-label="Language">${(['en', 'uz'] as const).map((l) => `<button class="${settings.lang === l ? 'on' : ''}" data-act="opt-lang" data-val="${l}" translate="no" aria-pressed="${settings.lang === l}">${l === 'en' ? 'English' : "O'zbekcha"}</button>`).join('')}</div>
         <button class="btn ghost small" data-act="settings">Settings</button>
       </div>
       ${lb.length ? `<div class="mini-lb"><h4>Top missions on this device</h4>${lb.map((e) => `<div><span>${esc(e.name)}</span><span>${esc(missionById(e.missionId).name)}</span><b>${e.score}</b></div>`).join('')}</div>` : ''}
