@@ -37,7 +37,9 @@ export function decodeDesign(code: string): Design | null {
       transfer = p.t.k === 'direct' ? directTransfer(m.target, p.t.L, p.t.tof) : jgaTransfer(m.target, p.t.L, p.t.t1!, p.t.tof - p.t.t1!);
     }
     const { t: _t, ...rest } = p;
-    return { ...(rest as Omit<Design, 'transfer'>), transfer };
+    const out = { ...(rest as Omit<Design, 'transfer'>), transfer } as Design;
+    out.adcsId ??= m.defaults.adcsId ?? 'spin';
+    return out;
   } catch {
     return null;
   }

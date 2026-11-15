@@ -1,7 +1,7 @@
 // "One change that would have saved it": re-fly the same mission with the same
 // luck (same random seed, independent event streams), changing one design
 // choice at a time, and rank the changes by how much they improve the score.
-import { ANTENNAS, AVIONICS, BATTERIES, JUPITER_ORBITS, LANDINGS, POWER, SHIELDS, TRANSMITTERS } from '../data/parts';
+import { ADCS, ANTENNAS, AVIONICS, BATTERIES, JUPITER_ORBITS, LANDINGS, POWER, SHIELDS, TRANSMITTERS } from '../data/parts';
 import { ROCKETS } from '../data/rockets';
 import { autoPropellant, evaluate } from './evaluate';
 import { Outcome, SimResult, simulate } from './simulate';
@@ -24,6 +24,7 @@ export function whatIfs(d: Design, base: SimResult, teamMode: boolean, limit = 3
 
   for (const p of POWER.filter((x) => m.powerIds.includes(x.id) && x.id !== d.powerId)) add(`Power: ${p.name}`, 'spacecraft', { powerId: p.id });
   for (const b of BATTERIES.filter((x) => x.id !== d.batteryId)) add(`Battery: ${b.name}`, 'spacecraft', { batteryId: b.id });
+  for (const a of ADCS.filter((x) => x.id !== (d.adcsId ?? m.defaults.adcsId))) add(`Attitude control: ${a.name}`, 'spacecraft', { adcsId: a.id });
   for (const a of AVIONICS.filter((x) => x.id !== d.avionicsId)) add(a.redundant ? 'Add a backup computer' : 'Remove the backup computer', 'spacecraft', { avionicsId: a.id });
   if (m.type === 'orbiter') {
     for (const s of SHIELDS.filter((x) => x.id !== d.shieldId)) add(`Radiation: ${s.name}`, 'spacecraft', { shieldId: s.id });
@@ -45,7 +46,7 @@ export function whatIfs(d: Design, base: SimResult, teamMode: boolean, limit = 3
     d2.propellantKg = v.change.propellantKg === -1 ? autoPropellant(d2, 0.3) : Math.max(d.propellantKg, autoPropellant(d2, 0.12));
     const ev2 = evaluate(d2);
     if (!ev2.launchable) continue;
-    const s2 = simulate(d2, ev2, base.seed, teamMode);
+    const s2 = simulate(d2, ev2, base.seed, teamMode, base.calls);
     out.push({ label: v.label, tab: v.tab, design: d2, score: s2.score.total, delta: s2.score.total - base.score.total, outcome: s2.outcome, science: s2.science });
   }
   return out.filter((w) => w.delta > 0).sort((a, b) => b.delta - a.delta).slice(0, limit);

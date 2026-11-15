@@ -57,3 +57,41 @@ describe('science objectives', () => {
     }
   });
 });
+
+describe('Mission Control decisions', () => {
+  it('a call only changes the future: same luck before it, different outcome after', () => {
+    const d = nasaPreset('pluto', 'normal');
+    const ev = evaluate(d);
+    const safe = simulate(d, ev, 7, false, { tcm: 'now', hazard: 'safe' });
+    const close = simulate(d, ev, 7, false, { tcm: 'now', hazard: 'close' });
+    const at = (s: typeof safe) => s.events.findIndex((e) => e.call?.id === 'hazard');
+    const before = (s: typeof safe) => s.events.slice(0, at(s)).map((e) => `${e.jd.toFixed(1)} ${e.title}`);
+    expect(before(safe)).toEqual(before(close));
+    // the safe-haven path costs science; the close path keeps it unless the dust hits
+    if (close.outcome !== 'failure') expect(close.science).toBeGreaterThan(safe.science);
+  });
+  it('every mission asks at least two calls, and unanswered calls use the safe default', () => {
+    for (const id of ['mars', 'jupiter', 'pluto']) {
+      const d = nasaPreset(id, 'normal');
+      const s = simulate(d, evaluate(d), 3, false);
+      const calls = s.events.filter((e) => e.call).map((e) => e.call!);
+      expect(calls.length).toBeGreaterThanOrEqual(2);
+      for (const c of calls) {
+        expect(c.chosen).toBe(c.auto);
+        expect(c.decided).toBe(false);
+        expect(c.result.length).toBeGreaterThan(10);
+      }
+    }
+  });
+  it('skipping the course correction makes a Mars landing riskier, never safer', () => {
+    const d = nasaPreset('mars', 'normal');
+    const ev = evaluate(d);
+    let lostNow = 0;
+    let lostSkip = 0;
+    for (let seed = 1; seed <= 400; seed++) {
+      if (simulate(d, ev, seed, false, { tcm: 'now', site: 'delta' }).lostAt === 'landing') lostNow++;
+      if (simulate(d, ev, seed, false, { tcm: 'skip', site: 'delta' }).lostAt === 'landing') lostSkip++;
+    }
+    expect(lostSkip).toBeGreaterThanOrEqual(lostNow);
+  });
+});

@@ -10,6 +10,8 @@ export interface Rocket {
   curve: [c3: number, kg: number][];
   desc: string;
   flew: string;
+  /** launch provider agency (Space Agency Partners are highlighted) */
+  agency?: string;
 }
 
 export const ROCKETS: Rocket[] = [
@@ -48,6 +50,26 @@ export const ROCKETS: Rocket[] = [
     curve: [[0, 15000], [10, 12900], [20, 10600], [30, 8700], [40, 7100], [60, 4700], [80, 2900], [100, 1700], [120, 900], [140, 400], [160, 0]],
     desc: 'Three Falcon 9 cores. Heavy lift at a bargain price.',
     flew: 'Europa Clipper, Psyche',
+  },
+  {
+    id: 'ariane64',
+    name: 'Ariane 64',
+    costM: 125,
+    reliability: 0.95,
+    curve: [[0, 7600], [10, 6200], [20, 4900], [30, 3800], [40, 2900], [60, 1500], [80, 600], [95, 0]],
+    desc: "ESA's new heavy rocket with four solid boosters. Strong for Mars and Jupiter energies; still building its flight record.",
+    flew: 'Ariane 6 first flew in 2024; its predecessor Ariane 5 launched ESA JUICE (Jupiter) and the James Webb Space Telescope',
+    agency: 'ESA',
+  },
+  {
+    id: 'h3',
+    name: 'H3-24',
+    costM: 55,
+    reliability: 0.9,
+    curve: [[0, 4300], [10, 3300], [20, 2500], [30, 1800], [40, 1200], [55, 500], [65, 0]],
+    desc: "JAXA's new low-cost rocket (four solid boosters). Cheap, but lighter than Falcon 9 for deep-space energies.",
+    flew: 'H3 launched in 2024-2025; its predecessor H-IIA launched Hayabusa2 and the SLIM Moon lander',
+    agency: 'JAXA',
   },
   {
     id: 'sls',

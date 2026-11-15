@@ -19,13 +19,13 @@ export function nasaPreset(missionId: string, difficulty: Difficulty): Design {
   if (m.id === 'mars') {
     d.transfer = directTransfer('mars', isoToJD('2031-01-28'), 193);
     Object.assign(d, {
-      powerId: 'mmrtg', batteryId: 'bat-m', landingId: 'skycrane', rocketId: 'atlasv551', antennaId: 'hga15', avionicsId: 'single',
+      powerId: 'mmrtg', batteryId: 'bat-m', landingId: 'skycrane', rocketId: 'atlasv551', antennaId: 'hga15', avionicsId: 'single', adcsId: 'spin',
       instruments: ['mastcam', 'supercam', 'pixl', 'sherloc', 'rimfax', 'meda', 'moxie', 'sampler', 'heli'],
     });
   } else if (m.id === 'jupiter') {
     d.transfer = directTransfer('jupiter', isoToJD('2031-02-24'), 767);
     Object.assign(d, {
-      powerId: 'solar-l', shieldId: 'heavy', rocketId: 'falconheavy', antennaId: 'hga21', txId: 'tx25', dsnDish: 70, avionicsId: 'dual',
+      powerId: 'solar-l', shieldId: 'heavy', rocketId: 'falconheavy', antennaId: 'hga21', txId: 'tx25', dsnDish: 70, avionicsId: 'dual', adcsId: 'spin',
       instruments: ['mwr', 'mag', 'grav', 'cam', 'jiram', 'uvs', 'particles'], orbitId: 'polar14',
     });
   } else {
@@ -33,7 +33,7 @@ export function nasaPreset(missionId: string, difficulty: Difficulty): Design {
     // Earth Jan 2030 -> Jupiter flyby (500 days) -> Pluto (11.6 years): found by the in-game launch-window search
     d.transfer = jgaTransfer('pluto', 2462524.653846154, 500, 4239.71484375);
     Object.assign(d, {
-      powerId: 'gphs', rocketId: 'atlasv551s48', antennaId: 'hga21', txId: 'tx12', dsnDish: 70, dsnHours: 24, avionicsId: 'single',
+      powerId: 'gphs', rocketId: 'atlasv551s48', antennaId: 'hga21', txId: 'tx12', dsnDish: 70, dsnHours: 24, avionicsId: 'single', adcsId: 'thrusters',
       instruments: ['lorri', 'ralph', 'alice', 'rex', 'swap', 'pepssi', 'sdc'],
     });
   }

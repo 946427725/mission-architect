@@ -1,7 +1,7 @@
 import { MISSIONS, MissionDef, missionById } from '../data/missions';
-import { ANTENNAS, AVIONICS, BATTERIES, JUPITER_ORBITS, LANDINGS, POWER, SHIELDS, TRANSMITTERS } from '../data/parts';
+import { ADCS, ANTENNAS, AVIONICS, BATTERIES, JUPITER_ORBITS, LANDINGS, POWER, SHIELDS, TRANSMITTERS } from '../data/parts';
 import { ROCKETS, payloadAt, rocketById } from '../data/rockets';
-import { Check, Evaluation, PROJECT_START_JD, Status, autoPropellant, evaluate, fmtM, formatRate } from '../game/evaluate';
+import { Check, Evaluation, PROJECT_START_JD, Status, adcsOf, autoPropellant, evaluate, fmtM, formatRate } from '../game/evaluate';
 import { GLOSSARY, term } from '../game/glossary';
 import { decodeDesign, encodeDesign, loadLeaderboard } from '../game/persist';
 import { mulberry32 } from '../game/rng';
@@ -11,7 +11,7 @@ import { BODIES, BodyId } from '../physics/constants';
 import { PorkchopGrid, computeGrid, transferAt } from '../physics/porkchop';
 import { formatDuration, formatJD, formatJDShort } from '../physics/time';
 import { CraftPreview } from '../scene/preview';
-import { planetTexture } from '../scene/textures';
+import { REAL_MAPS, planetTexture } from '../scene/textures';
 import { SolarSystemView } from '../scene/solarSystem';
 import { $, $$, countdown, esc, fmtInt, fmtKg, toast, tween } from './dom';
 import { FlightPlayer } from './flight';
@@ -797,6 +797,10 @@ export class App {
     }
   }
 
+  playerForRole(role: RoleId): string {
+    return this.playerFor(role);
+  }
+
   private playerFor(role: RoleId): string {
     const i = ROLE_ORDER.indexOf(role);
     const p = this.team.players;
@@ -996,6 +1000,7 @@ export class App {
     }).join('')}</div></div>`;
     html += `<div class="field"><label>Battery</label>${this.seg('batteryId', [{ id: 'none', label: 'None' }, ...BATTERIES.map((b) => ({ id: b.id, label: `${b.wh / 1000} kWh` }))], d.batteryId)}</div>`;
     html += `<div class="field"><label data-tip="A second computer, radio and pointing wheels. Saves the mission when something breaks.">Backup computer</label>${this.seg('avionicsId', AVIONICS.map((a) => ({ id: a.id, label: a.redundant ? 'Yes' : 'No', small: a.redundant ? `+${a.mass} kg · $${a.costM}M` : '' })), d.avionicsId)}</div>`;
+    html += `<div class="field"><label data-tip="How the spacecraft knows and changes where it points: spinning like a top, thruster puffs, or reaction wheels.">Attitude control</label>${this.seg('adcsId', ADCS.map((a) => ({ id: a.id, label: a.short, small: `${a.mass} kg · ${a.analog.split(',')[0]}` })), adcsOf(d).id)}</div>`;
     if (m.type === 'orbiter') {
       html += `<div class="field"><label data-tip="Jupiter's radiation destroys electronics. A titanium vault protects them.">Radiation vault</label>${this.seg('shieldId', SHIELDS.map((s) => {
         const e = evaluate({ ...d, shieldId: s.id });
@@ -1174,7 +1179,7 @@ export class App {
   private planetImg(id: BodyId): string {
     let u = this.planetURL.get(id);
     if (!u) {
-      u = (planetTexture(id).image as HTMLCanvasElement).toDataURL('image/jpeg', 0.9);
+      u = REAL_MAPS[id] ?? (planetTexture(id).image as HTMLCanvasElement).toDataURL('image/jpeg', 0.9);
       this.planetURL.set(id, u);
     }
     return u;

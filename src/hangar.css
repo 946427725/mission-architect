@@ -400,3 +400,10 @@ body.lowfx .ms-obj, body.lowfx .ms-node, body.lowfx .ms-stats div { background: 
 .gh-lock { position: absolute; left: 50%; top: 58%; transform: translate(-50%, -50%); padding: 9px 16px !important; font-size: 13px !important; display: none; flex-direction: column; align-items: center; gap: 4px; padding: 14px 22px; border-radius: 16px; background: rgba(9, 13, 19, 0.7); border: 1px solid rgba(255, 255, 255, 0.18); font: 800 16px var(--display); font-stretch: 112%; text-transform: uppercase; letter-spacing: 0.02em; pointer-events: none !important; }
 .gh-lock small { font: 500 11px var(--mono); text-transform: none; letter-spacing: 0.02em; color: #9db0c2; }
 .gh-lock.show { display: flex; }
+
+/* data source chips on station panels */
+.gp-src { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0 0; font: 500 11px/1.3 var(--mono); }
+.gp-src span { color: var(--g-dim, #8a9aac); letter-spacing: 0.12em; text-transform: uppercase; margin-right: 2px; }
+.gp-src a { color: #9fd8ff; text-decoration: none; padding: 3px 8px; border-radius: 999px; background: rgba(76, 201, 255, 0.1); border: 1px solid rgba(76, 201, 255, 0.25); }
+.gp-src a:hover { background: rgba(76, 201, 255, 0.2); }
+.grk-ag { font: 700 10px/1 var(--mono); font-style: normal; letter-spacing: 0.08em; padding: 2px 6px; border-radius: 6px; background: rgba(255, 181, 71, 0.18); color: #ffcf7a; vertical-align: middle; }

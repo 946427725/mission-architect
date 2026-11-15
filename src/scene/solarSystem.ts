@@ -13,7 +13,7 @@ import { orbitPath, planetState } from '../physics/ephemeris';
 import { propagate } from '../physics/kepler';
 import { Transfer } from '../physics/porkchop';
 import { V3 } from '../physics/vec';
-import { glowTexture, planetTexture, ringTexture } from './textures';
+import { glowTexture, planetTexture, realPlanetTexture, ringTexture } from './textures';
 
 export const UNITS_PER_AU = 10;
 const S = UNITS_PER_AU / AU;
@@ -195,7 +195,7 @@ export class SolarSystemView {
     const radius = VISUAL_RADIUS[id];
     const mesh = new THREE.Mesh(
       new THREE.SphereGeometry(radius, 48, 32),
-      new THREE.MeshStandardMaterial({ map: planetTexture(id), roughness: 0.9, metalness: 0 }),
+      new THREE.MeshStandardMaterial({ map: realPlanetTexture(id) ?? planetTexture(id), roughness: 0.9, metalness: 0 }),
     );
     if (id === 'saturn') {
       const ring = new THREE.Mesh(

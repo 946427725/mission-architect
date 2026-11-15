@@ -69,10 +69,13 @@ export interface MissionDef {
     orbitId?: string;
     rocketId: string;
     shieldId?: string;
+    adcsId?: string;
     dsnDish?: 34 | 70;
     dsnHours?: number;
   };
   nasa: NasaReference;
+  /** a Space Agency Partner mission to the same target, for comparison */
+  partner?: NasaReference & { agency: string };
   hints: Record<'trajectory' | 'spacecraft' | 'science' | 'comms' | 'launch', string>;
 }
 
@@ -121,7 +124,7 @@ export const MISSIONS: MissionDef[] = [
       { id: 'humans', name: 'Prepare for astronauts', desc: 'Learn what future crews need: weather, radiation, buried ice and oxygen.', weights: { meda: 2, moxie: 2, rimfax: 1.4, heli: 1.2, supercam: 0.8, pixl: 0.6, sherloc: 0.6, sampler: 0.6 } },
       { id: 'water', name: "Trace Mars' lost water", desc: 'Read the history of rivers and lakes in the rock layers.', weights: { rimfax: 1.8, supercam: 1.3, mastcam: 1.2, pixl: 1.1, moxie: 0.4 } },
     ],
-    defaults: { powerId: 'solar-s', instruments: ['mastcam', 'supercam'], antennaId: 'hga15', txId: 'tx12', propellantKg: 70, landingId: 'airbags', rocketId: 'falcon9' },
+    defaults: { powerId: 'solar-s', instruments: ['mastcam', 'supercam'], antennaId: 'hga15', txId: 'tx12', propellantKg: 70, landingId: 'airbags', rocketId: 'falcon9', adcsId: 'spin' },
     nasa: {
       name: 'Perseverance (Mars 2020)',
       facts: [
@@ -135,6 +138,19 @@ export const MISSIONS: MissionDef[] = [
       ],
       lesson: 'NASA picked an MMRTG because Opportunity proved solar rovers can die in global dust storms (2018).',
       url: 'https://science.nasa.gov/mission/mars-2020-perseverance/',
+    },
+    partner: {
+      agency: 'ESA',
+      name: 'Rosalind Franklin rover (ExoMars)',
+      facts: [
+        ['Launch', 'planned 2028, with NASA support'],
+        ['Landing site', 'Oxia Planum, an ancient clay plain'],
+        ['Rover mass', '≈300 kg'],
+        ['Power', 'solar arrays'],
+        ['Special tool', 'a drill that reaches 2 m below the surface'],
+      ],
+      lesson: 'Radiation destroys organic molecules near the surface of Mars, so ESA\'s rover drills 2 m down, where signs of ancient life could have survived.',
+      url: 'https://www.esa.int/Science_Exploration/Human_and_Robotic_Exploration/Exploration/ExoMars',
     },
     hints: {
       trajectory: 'Mars and Earth line up every 26 months. Dark blue islands on the plot are launch windows - outside them no rocket is strong enough. Fast trips hit Mars faster, which the heat shield may not survive.',
@@ -185,7 +201,7 @@ export const MISSIONS: MissionDef[] = [
       { id: 'aurora', name: 'The giant auroras', desc: 'Find out what powers the biggest auroras in the solar system.', weights: { uvs: 1.7, particles: 1.6, waves: 1.5, jiram: 1.3, mag: 1.2, mwr: 0.6, grav: 0.5, cam: 0.9 } },
       { id: 'moons', name: 'The icy moons', desc: 'Fly past Europa and Ganymede, where oceans may hide under the ice.', weights: { cam: 1.6, jiram: 1.5, uvs: 1.1, mag: 1.2, particles: 0.9, mwr: 0.5, grav: 0.6, waves: 0.8 }, needsOrbit: 'tour' },
     ],
-    defaults: { powerId: 'solar-l', instruments: ['mwr', 'mag', 'cam'], antennaId: 'hga21', txId: 'tx25', propellantKg: 700, orbitId: 'polar53', rocketId: 'falconheavy', shieldId: 'light' },
+    defaults: { powerId: 'solar-l', instruments: ['mwr', 'mag', 'cam'], antennaId: 'hga21', txId: 'tx25', propellantKg: 700, orbitId: 'polar53', rocketId: 'falconheavy', shieldId: 'light', adcsId: 'spin' },
     nasa: {
       name: 'Juno',
       facts: [
@@ -200,6 +216,19 @@ export const MISSIONS: MissionDef[] = [
       ],
       lesson: 'A direct trip needs C3 ≈ 80. Juno launched with C3 ≈ 31 and swung past Earth two years later to gain speed - so a cheaper Atlas V could do the job.',
       url: 'https://science.nasa.gov/mission/juno/',
+    },
+    partner: {
+      agency: 'ESA',
+      name: 'JUICE (Jupiter Icy Moons Explorer)',
+      facts: [
+        ['Launch', '14 Apr 2023, Ariane 5'],
+        ['Route', 'Earth, Moon, Venus and Earth flybys; arrives Jul 2031'],
+        ['Launch mass', '≈6,100 kg'],
+        ['Power', '85 m² solar arrays, ≈850 W at Jupiter'],
+        ['Goal', 'first spacecraft to orbit another planet\'s moon (Ganymede)'],
+      ],
+      lesson: 'ESA also chose solar power at Jupiter, with even bigger wings than Juno, and a slow route with four planet flybys to save fuel for the moon tour.',
+      url: 'https://www.esa.int/Science_Exploration/Space_Science/Juice',
     },
     hints: {
       trajectory: 'Jupiter windows come every 13 months. Reaching Jupiter directly needs a lot of launch energy (C3 ≈ 80) - check which rockets can handle that.',
@@ -250,7 +279,7 @@ export const MISSIONS: MissionDef[] = [
       { id: 'atmosphere', name: 'The escaping atmosphere', desc: "How fast is Pluto's thin nitrogen air leaking into space?", weights: { alice: 1.8, rex: 1.7, pepssi: 1.5, swap: 1.4, ralph: 0.9, lorri: 0.7, sdc: 0.7 } },
       { id: 'kuiper', name: 'The Kuiper Belt', desc: 'Pluto is one of thousands of icy worlds out here. Study the whole region.', weights: { sdc: 2, lorri: 1.4, ralph: 1.1, alice: 0.9, rex: 0.9, swap: 0.9, pepssi: 0.9 } },
     ],
-    defaults: { powerId: 'gphs', instruments: ['lorri', 'ralph'], antennaId: 'hga21', txId: 'tx12', propellantKg: 60, rocketId: 'atlasv551s48', dsnDish: 70, dsnHours: 8 },
+    defaults: { powerId: 'gphs', instruments: ['lorri', 'ralph'], antennaId: 'hga21', txId: 'tx12', propellantKg: 60, rocketId: 'atlasv551s48', dsnDish: 70, dsnHours: 8, adcsId: 'thrusters' },
     nasa: {
       name: 'New Horizons',
       facts: [

@@ -25,7 +25,7 @@ import { SpaceCinema } from './space';
 
 type Mode = 'off' | 'attract' | 'play' | 'cinema';
 const ROLE_ORDER: RoleId[] = ['flight', 'engineer', 'science', 'ops'];
-const FIELD_PART: Record<string, string> = { powerId: 'power', antennaId: 'antenna', shieldId: 'shield', avionicsId: 'avionics', batteryId: 'battery', txId: 'tx', landingId: 'landing' };
+const FIELD_PART: Record<string, string> = { adcsId: 'adcs', powerId: 'power', antennaId: 'antenna', shieldId: 'shield', avionicsId: 'avionics', batteryId: 'battery', txId: 'tx', landingId: 'landing' };
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const damp = (a: number, b: number, k: number, dt: number) => lerp(a, b, 1 - Math.exp(-k * dt));
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
@@ -414,7 +414,7 @@ export class Hangar {
 
   // ------------------------------------------------------------ craft
   private craftSignature(d: Design) {
-    return [d.missionId, d.powerId, d.antennaId, d.shieldId, d.landingId, d.avionicsId, d.batteryId, d.txId, d.instruments.slice().sort().join(',')].join('|');
+    return [d.missionId, d.powerId, d.antennaId, d.shieldId, d.landingId, d.avionicsId, d.adcsId, d.batteryId, d.txId, d.instruments.slice().sort().join(',')].join('|');
   }
 
   private syncCraft(d: Design, hidePart?: string): THREE.Group | null {

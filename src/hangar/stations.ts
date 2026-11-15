@@ -2,11 +2,11 @@
 // hardware on it: racks of power sources, a lab bench of instruments, antenna
 // stands, a fuel cart, desks with live screens, and the launch gate.
 import * as THREE from 'three';
-import { ANTENNAS, BATTERIES, LANDINGS, POWER, SHIELDS, TRANSMITTERS } from '../data/parts';
+import { ADCS, ANTENNAS, BATTERIES, LANDINGS, POWER, SHIELDS, TRANSMITTERS } from '../data/parts';
 import { MissionDef } from '../data/missions';
 import { ROCKETS } from '../data/rockets';
 import { RoleId, Tab } from '../game/state';
-import { instrumentModel, landingModel, rtgModel, solarWing } from './craft';
+import { adcsModel, instrumentModel, landingModel, rtgModel, solarWing } from './craft';
 import { Collider, ROOM } from './env';
 import { M, at, box, cyl, dishModel, hose, mergeStatic, rbox, rod, shade, sph, v3 } from './kit';
 import { buildRocket } from './rockets3d';
@@ -30,7 +30,7 @@ export const STATIONS: StationDef[] = [
   { id: 'flight', role: 'flight', name: 'Flight Dynamics', tab: 'trajectory', stand: [-9, 8.7], face: 0, label: [-9, 2.6, 10.2] },
   { id: 'rockets', role: 'flight', name: 'Rockets', tab: 'launch', stand: [-11.7, 8.1], face: Math.atan2(-1.9, 1.3), label: [-13.6, 3.4, 9.4] },
   { id: 'power', role: 'engineer', name: 'Power', tab: 'spacecraft', stand: [-14.1, -4.5], face: -Math.PI / 2, label: [-15.8, 3.6, -4.5] },
-  { id: 'systems', role: 'engineer', name: 'Avionics & Batteries', tab: 'spacecraft', stand: [-14.1, 1.5], face: -Math.PI / 2, label: [-15.8, 3.6, 1.5] },
+  { id: 'systems', role: 'engineer', name: 'Avionics, Batteries & Pointing', tab: 'spacecraft', stand: [-14.1, 1.5], face: -Math.PI / 2, label: [-15.8, 3.6, 1.5] },
   { id: 'fuel', role: 'engineer', name: 'Fuel', tab: 'spacecraft', stand: [-4.25, -5.0], face: Math.atan2(-0.95, -0.9), label: [-5.2, 2.4, -6.0] },
   { id: 'landing', role: 'engineer', name: 'Landing Systems', tab: 'spacecraft', stand: [-10.2, -7.6], face: Math.PI, label: [-10.2, 4.4, -10.6], types: ['lander'] },
   { id: 'orbit', role: 'flight', name: 'Orbit Planning', tab: 'spacecraft', stand: [-9.5, -10.3], face: Math.PI, label: [-9.5, 5.2, -12.6], types: ['orbiter'] },
@@ -149,6 +149,8 @@ export function itemModel(key: string): THREE.Group {
       const a = (i / 8) * Math.PI * 2;
       g.add(at(cyl(0.018, 0.018, 0.02, m.steel, 8), Math.cos(a) * sz * 0.4, sz * 0.38, Math.sin(a) * sz * 0.4));
     }
+  } else if (field === 'adcsId') {
+    g.add(adcsModel(val, m));
   } else if (field === 'antennaId') {
     const a = ANTENNAS.find((x) => x.id === val)!;
     if (a.id === 'lga') g.add(at(cyl(0.05, 0.13, 0.32, m.thermalWhite, 18), 0, 0.16, 0));
@@ -306,6 +308,18 @@ export function buildStation(def: StationDef, mission: MissionDef, roleColor: st
           label('shieldId:' + s.id, s.id === 'heavy' ? 'Heavy vault' : 'Light vault', `${s.mass} kg titanium`, rack, v3(0.6, 0.24, z), Math.PI / 2);
         });
       colliders.push({ kind: 'box', x0: -ROOM.x, x1: -ROOM.x + 1.3, z0: -0.4, z1: 3.4 });
+      // attitude control shelf next to it
+      const rack2 = palletRack(2.4, [0.15, 1.25]);
+      rack2.position.set(-ROOM.x + 0.65, 0, 4.75);
+      g.add(rack2);
+      ADCS.forEach((a, i) => {
+        const it = itemModel('adcsId:' + a.id);
+        const z = -0.75 + i * 0.75;
+        it.position.set(0, 1.25 + 0.1, z);
+        addSlot('adcsId:' + a.id, it, rack2);
+        label('adcsId:' + a.id, a.short, a.analog.split(',')[0], rack2, v3(0.6, 1.33, z), Math.PI / 2);
+      });
+      colliders.push({ kind: 'box', x0: -ROOM.x, x1: -ROOM.x + 1.3, z0: 3.45, z1: 6.05 });
       break;
     }
     case 'landing': {

@@ -15,7 +15,16 @@ const bodyInner = body
   .slice(body.indexOf('>') + 1)
   .replace(/<script[^>]*src=[^>]*><\/script>/g, '')
   .trim();
-const safeJs = js.replace(/<\/script/gi, '<\\/script');
+// Images (the real NASA planet maps) become data: URIs so the page needs no other files.
+let inlined = js;
+for (const f of assets.filter((x) => /\.(jpe?g|png|webp)$/i.test(x))) {
+  const mime = /\.png$/i.test(f) ? 'image/png' : /\.webp$/i.test(f) ? 'image/webp' : 'image/jpeg';
+  const uri = JSON.stringify(`data:${mime};base64,${readFileSync(join(dist, 'assets', f)).toString('base64')}`);
+  const name = f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  inlined = inlined.replace(new RegExp('new URL\\(([`"\'])(?:\\./)?(?:assets/)?' + name + '\\1,\\s*import\\.meta\\.url\\)\\.href', 'g'), () => uri);
+  inlined = inlined.replace(new RegExp('([`"\'])(?:\\./|/)?assets/' + name + '\\1', 'g'), () => uri);
+}
+const safeJs = inlined.replace(/<\/script/gi, '<\\/script');
 
 const out = `<title>Mission Architect</title>
 <meta name="description" content="Design a real space mission - physics decides if it works. A NASA Space Apps Challenge 2026 game.">

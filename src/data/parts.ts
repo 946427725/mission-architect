@@ -51,6 +51,27 @@ export const AVIONICS: AvionicsOption[] = [
   { id: 'dual', name: 'Dual-string (fully redundant)', redundant: true, mass: 30, costM: 40, devYears: 0.2, desc: 'Backup computer, reaction wheels and radios. NASA flagship standard.' },
 ];
 
+export interface AdcsOption {
+  id: string;
+  name: string;
+  short: string;
+  analog: string;
+  mass: number; // kg
+  power: number; // W
+  costM: number;
+  devYears: number;
+  fuelDv: number; // km/s of extra propellant used for pointing
+  wheels: boolean; // has reaction wheels that can fail
+  science: Record<'lander' | 'orbiter' | 'flyby', number>; // pointing quality -> science multiplier
+  desc: string;
+}
+// Attitude determination & control: how the spacecraft knows and changes where it points.
+export const ADCS: AdcsOption[] = [
+  { id: 'spin', name: 'Spin-stabilized', short: 'Spin', analog: 'Juno, Mars cruise stages', mass: 6, power: 5, costM: 4, devYears: 0, fuelDv: 0, wheels: false, science: { lander: 1, orbiter: 1, flyby: 0.8 }, desc: 'The spacecraft spins like a top (2-5 rpm) to stay steady. Light and simple, but cameras cannot hold a long steady stare, so fast flybys get blurrier images.' },
+  { id: 'thrusters', name: '3-axis thrusters + star trackers', short: 'Thrusters', analog: 'New Horizons', mass: 12, power: 8, costM: 10, devYears: 0, fuelDv: 0.02, wheels: false, science: { lander: 1, orbiter: 1, flyby: 1 }, desc: 'Small thruster puffs hold any direction and star cameras check it. Precise, nothing to wear out, but every puff uses fuel (+20 m/s).' },
+  { id: 'wheels', name: 'Reaction wheels + star tracker', short: 'Reaction wheels', analog: 'MRO, Kepler, Hubble', mass: 28, power: 35, costM: 16, devYears: 0.1, fuelDv: 0, wheels: true, science: { lander: 1, orbiter: 1.06, flyby: 1.05 }, desc: 'Spinning wheels turn the spacecraft smoothly to 0.01°: the sharpest pointing. Heavy, power hungry, and wheels can seize (Kepler and Dawn lost wheels).' },
+];
+
 export interface ShieldOption { id: string; name: string; factor: number; mass: number; costM: number; desc: string; }
 export const SHIELDS: ShieldOption[] = [
   { id: 'none', name: 'No radiation vault', factor: 1, mass: 0, costM: 0, desc: 'Electronics exposed to the full radiation environment.' },

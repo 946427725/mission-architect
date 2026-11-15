@@ -26,6 +26,8 @@ export interface Design {
   txId: string;
   avionicsId: string;
   shieldId: string;
+  /** attitude control; missing in old share links (then the mission default) */
+  adcsId?: string;
   landingId?: string;
   orbitId?: string;
   instruments: string[];
@@ -55,6 +57,7 @@ export function defaultDesign(m: MissionDef, difficulty: Difficulty): Design {
     txId: m.defaults.txId,
     avionicsId: 'single',
     shieldId: m.defaults.shieldId ?? 'none',
+    adcsId: m.defaults.adcsId ?? 'spin',
     landingId: m.defaults.landingId,
     orbitId: m.defaults.orbitId,
     instruments: [...m.defaults.instruments],

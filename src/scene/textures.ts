@@ -1,6 +1,28 @@
 // Procedural planet textures drawn on a canvas - no downloads needed.
 import * as THREE from 'three';
 import { BodyId } from '../physics/constants';
+import earthMap from '../assets/planets/earth.jpg';
+import marsMap from '../assets/planets/mars.jpg';
+import plutoMap from '../assets/planets/pluto.jpg';
+import jupiterMap from '../assets/planets/jupiter.jpg';
+
+/** Real NASA global maps (public domain), see src/data/sources.ts IMAGE_CREDITS. */
+export const REAL_MAPS: Partial<Record<BodyId, string>> = { earth: earthMap, mars: marsMap, jupiter: jupiterMap, pluto: plutoMap };
+const realCache = new Map<string, THREE.Texture>();
+/** A texture from a real NASA map, or null when the game only has a procedural one. */
+export function realPlanetTexture(id: BodyId): THREE.Texture | null {
+  const url = REAL_MAPS[id];
+  if (!url) return null;
+  let t = realCache.get(id);
+  if (!t) {
+    t = new THREE.TextureLoader().load(url);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = 8;
+    realCache.set(id, t);
+  }
+  return t;
+}
+
 
 function hash(x: number, y: number, s: number) {
   let h = x * 374761393 + y * 668265263 + s * 2147483647;
@@ -194,6 +216,8 @@ export function solarCellTexture(): THREE.Texture {
 /** Higher-resolution planet map for close-up cinematics (generated once, ~0.2 s). */
 const hiCache = new Map<string, THREE.Texture>();
 export function planetHiRes(id: BodyId, w = 1024): THREE.Texture {
+  const real = realPlanetTexture(id);
+  if (real) return real;
   const k = `${id}@${w}`;
   const hit = hiCache.get(k);
   if (hit) return hit;

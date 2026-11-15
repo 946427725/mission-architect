@@ -2,7 +2,7 @@
 // (mass, power, delta-v, data, cost, time) and explains every check.
 
 import {
-  ANTENNAS, AVIONICS, BATTERIES, JUPITER_ORBITS, LANDINGS, POWER, RADIATION_TOLERANCE_KRAD, SHIELDS, TRANSMITTERS,
+  ADCS, ANTENNAS, AVIONICS, BATTERIES, JUPITER_ORBITS, LANDINGS, POWER, RADIATION_TOLERANCE_KRAD, SHIELDS, TRANSMITTERS,
 } from '../data/parts';
 import { Instrument, MissionDef } from '../data/missions';
 import { payloadAt, rocketById } from '../data/rockets';
@@ -63,6 +63,7 @@ export function evaluate(d: Design): Evaluation {
   const tx = find(TRANSMITTERS, d.txId)!;
   const avionics = find(AVIONICS, d.avionicsId)!;
   const shield = find(SHIELDS, d.shieldId)!;
+  const adcs = adcsOf(d);
   const landing = find(LANDINGS, d.landingId);
   const orbit = find(JUPITER_ORBITS, d.orbitId);
   const rocket = rocketById(d.rocketId);
@@ -72,7 +73,7 @@ export function evaluate(d: Design): Evaluation {
 
   // ---------- development time ----------
   const devYears =
-    m.devBaseYears + 0.1 * instr.length + power.devYears + avionics.devYears + (landing?.devYears ?? 0) +
+    m.devBaseYears + 0.1 * instr.length + power.devYears + avionics.devYears + adcs.devYears + (landing?.devYears ?? 0) +
     (instr.reduce((s, i) => s + i.mass, 0) > 60 ? 0.3 : 0);
   const readyJD = PROJECT_START_JD + devYears * YEAR_DAYS;
 
@@ -85,8 +86,9 @@ export function evaluate(d: Design): Evaluation {
   let rover: number | undefined;
   if (m.type === 'lander' && landing) {
     rover = landing.chassis + instrMass + subsystems;
-    items.push(['Rover', rover], ['Entry, descent & landing system', landing.edlMass], ['Cruise stage', m.busMass]);
-    dry = rover + landing.edlMass + m.busMass;
+    // the cruise stage carries the attitude control on the way to Mars
+    items.push(['Rover', rover], ['Entry, descent & landing system', landing.edlMass], ['Cruise stage', m.busMass + adcs.mass]);
+    dry = rover + landing.edlMass + m.busMass + adcs.mass;
   } else {
     const structure = 0.1 * (instrMass + subsystems);
     items.push(
@@ -97,8 +99,9 @@ export function evaluate(d: Design): Evaluation {
     );
     if (avionics.mass) items.push(['Redundant avionics', avionics.mass]);
     if (shield.mass) items.push(['Radiation vault', shield.mass]);
+    items.push(['Attitude control', adcs.mass]);
     items.push(['Structure & cabling', structure]);
-    dry = m.busMass + instrMass + subsystems + structure;
+    dry = m.busMass + instrMass + subsystems + structure + adcs.mass;
   }
   const propellant = d.propellantKg;
   items.push(['Propellant', propellant]);
@@ -116,7 +119,7 @@ export function evaluate(d: Design): Evaluation {
     insertion = Math.sqrt(tr.vinfArr ** 2 + (2 * body.mu) / rp) - Math.sqrt(body.mu * (2 / rp - 1 / a));
   }
   const flybyDv = tr?.flyby?.dv ?? 0;
-  const dvRequired = m.tcmDv + insertion + flybyDv;
+  const dvRequired = m.tcmDv + insertion + flybyDv + adcs.fuelDv;
   const dvAvailable = ((m.isp * G0) / 1000) * Math.log(launchMass / dry);
   const dvMargin = dvRequired > 0 ? (dvAvailable - dvRequired) / dvRequired : 1;
 
@@ -134,7 +137,7 @@ export function evaluate(d: Design): Evaluation {
   const duty = m.type === 'lander' ? 0.12 : m.type === 'orbiter' ? 0.7 : 1.0;
   const instrPeak = instr.reduce((s, i) => s + i.power, 0);
   const instrAvg = instr.reduce((s, i) => s + (i.id === 'moxie' ? i.power * 0.04 : i.power * duty), 0);
-  const base = m.busPowerW + (avionics.redundant ? 10 : 0);
+  const base = m.busPowerW + (avionics.redundant ? 10 : 0) + (m.type === 'lander' ? 0 : adcs.power);
   const txAvg = m.type === 'lander' ? 15 * (2 / 24) + (hasHGA ? tx.dcW * (1 / 24) : 0) : tx.dcW * (d.dsnHours / 24);
   const avgLoad = base + instrAvg + txAvg;
   const peakLoad = base + instrPeak + tx.dcW;
@@ -191,6 +194,11 @@ export function evaluate(d: Design): Evaluation {
   if (tr?.kind === 'jga' && instr.some((i) => i.id === 'lorri' || i.id === 'ralph')) sciItems.push(['Bonus: Jupiter flyby science', 8]);
   const outreach = instr.filter((i) => i.outreach).length;
   if (outreach) sciItems.push(['Public engagement (images & student science)', 3 * outreach]);
+  const pointing = adcs.science[m.type];
+  if (pointing !== 1) {
+    const raw = sciItems.reduce((s, [, v]) => s + v, 0);
+    sciItems.push([`Pointing: ${adcs.short.toLowerCase()} (${pointing > 1 ? '+' : ''}${Math.round((pointing - 1) * 100)}%)`, raw * (pointing - 1)]);
+  }
   const potential = sciItems.reduce((s, [, v]) => s + v, 0);
 
   // ---------- cost ----------
@@ -203,6 +211,7 @@ export function evaluate(d: Design): Evaluation {
     ['Communications', antenna.costM + tx.costM + (m.type === 'lander' ? 5 : 0)],
   ];
   if (avionics.costM) costItems.push(['Redundant avionics', avionics.costM]);
+  costItems.push(['Attitude control', adcs.costM]);
   if (shield.costM) costItems.push(['Radiation vault', shield.costM]);
   if (landing) costItems.push(['Landing system', landing.costM]);
   costItems.push(['Launch: ' + rocket.name, rocket.costM]);
@@ -276,6 +285,10 @@ export function evaluate(d: Design): Evaluation {
       `; your ${Math.round(propellant)} kg of propellant gives ${(dvAvailable * 1000).toFixed(0)} m/s.` +
       (dvAvailable < dvRequired ? (insertion ? ' You would fly straight past Jupiter!' : ' You cannot steer to the target.') : ''),
   });
+  if (m.type === 'flyby' && adcs.id === 'spin')
+    add({ id: 'adcs', area: 'spacecraft', label: 'Pointing for the flyby', status: 'warn', detail: 'A spinning spacecraft cannot hold a steady stare during a fast flyby: images blur (-20% science). New Horizons switched to 3-axis thruster control for the encounter.' });
+  else
+    add({ id: 'adcs', area: 'spacecraft', label: 'Pointing', status: 'ok', detail: `${adcs.name} (${adcs.analog}).${m.type === 'lander' ? ' On the cruise stage: the rover itself does not need it.' : ''}` });
   if (radiation) {
     add({
       id: 'rad', area: 'spacecraft', label: 'Radiation survival',
@@ -349,6 +362,12 @@ export function evaluate(d: Design): Evaluation {
     checks,
     launchable: !checks.some((c) => c.status === 'fail'),
   };
+}
+
+/** The attitude control option of a design (old share links fall back to the mission default). */
+export function adcsOf(d: Design) {
+  const m = missionOf(d);
+  return find(ADCS, d.adcsId) ?? find(ADCS, m.defaults.adcsId) ?? ADCS[0];
 }
 
 export const fmtM = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(2)}B` : `${Math.round(v)}M`);

@@ -1,8 +1,9 @@
 // Station panel content, task list, resource gauges and the live wall screens.
 import * as THREE from 'three';
-import { ANTENNAS, AVIONICS, BATTERIES, JUPITER_ORBITS, LANDINGS, POWER, SHIELDS, TRANSMITTERS } from '../data/parts';
+import { ADCS, ANTENNAS, AVIONICS, BATTERIES, JUPITER_ORBITS, LANDINGS, POWER, SHIELDS, TRANSMITTERS } from '../data/parts';
 import { ROCKETS, payloadAt, rocketById } from '../data/rockets';
 import { MISSIONS } from '../data/missions';
+import { stationSources } from '../data/sources';
 import { Evaluation, Status, evaluate, fmtM, formatRate } from '../game/evaluate';
 import { HISTORY } from '../game/history';
 import { ROLE_INFO } from '../game/simulate';
@@ -30,6 +31,7 @@ const SHORT: Record<string, string> = {
   lga: 'Low-gain antenna', hga15: '1.5 m dish', hga21: '2.1 m dish', hga30: '3.0 m dish',
   light: 'Light radiation vault', heavy: 'Heavy radiation vault', dual: 'Backup computer',
   'bat-s': '1 kWh battery', 'bat-m': '2.5 kWh battery', 'bat-l': '6 kWh battery',
+  spin: 'Spin stabilization', thrusters: '3-axis thrusters', wheels: 'Reaction wheels',
 };
 
 export function partName(key: string, d?: Design, ev?: Evaluation): string {
@@ -163,6 +165,7 @@ function head(id: StationId, ctx: PanelCtx, goal: string, st: St) {
       <div class="gp-kicker"><i class="gp-dot"></i>${esc(role.title)}${ctx.team ? ` · ${esc(ctx.playerFor(def.role))}` : ''}</div>
       <h2>${esc(def.name)}</h2>
       <p class="gp-goal ${st}"><b>${st === 'ok' ? '✓' : st === 'warn' ? '!' : '✕'}</b><span>${goal}</span></p>
+      <p class="gp-src"><span>Data</span>${stationSources(id, ctx.app.design?.missionId ?? 'mars').map((s) => `<a href="${s.url}" target="_blank" rel="noopener">${esc(s.label)} ↗</a>`).join('')}</p>
       <button class="gp-x" data-act="h-close" aria-label="Close">×</button>
     </header>`;
 }
@@ -207,6 +210,12 @@ export function panelHTML(id: StationId, d: Design, ev: Evaluation, ctx: PanelCt
       html += card({ name: 'Single string', sub: 'no backup', big: '+0', unit: 'kg', small: '$0', sel: d.avionicsId === 'single', act: d.avionicsId === 'dual' ? 'h-remove' : undefined, key: 'avionicsId:dual', tag: d.avionicsId === 'single' ? 'Current' : undefined, tagTone: 'on', tip: AVIONICS[0].desc });
       html += partCard(d, ctx, 'avionicsId:dual', { name: 'Dual string', sub: 'flagship standard', big: `+${dual.mass}`, unit: 'kg', small: `$${dual.costM}M · +${dual.devYears} yr`, tip: dual.desc });
       html += '</div>';
+      html += `<div class="gp-sec">Attitude control · points cameras and antenna${m.type === 'lander' ? ' (on the cruise stage)' : ''}</div><div class="gc-grid">`;
+      html += ADCS.map((a) => {
+        const sci = a.science[m.type];
+        return partCard(d, ctx, 'adcsId:' + a.id, { name: SHORT[a.id], sub: `like ${a.analog}`, big: String(a.mass), unit: 'kg', small: `${m.type === 'lander' ? 0 : a.power} W · $${a.costM}M${a.fuelDv ? ' · +20 m/s fuel' : ''}`, tip: a.desc, tag: sci !== 1 ? `${sci > 1 ? '+' : ''}${Math.round((sci - 1) * 100)}% science` : undefined, tagTone: sci > 1 ? 'on' : 'bad' });
+      }).join('');
+      html += '</div>';
       if (m.type === 'orbiter') {
         html += `<div class="gp-sec">Radiation vault · Jupiter's belts fry electronics</div><div class="gc-grid">`;
         const curS = SHIELDS.find((s) => s.id === d.shieldId);
@@ -218,7 +227,7 @@ export function panelHTML(id: StationId, d: Design, ev: Evaluation, ctx: PanelCt
         }).join('');
         html += '</div>';
       }
-      return head(id, ctx, goalOf(ev, ['battery', 'rad'], 'Batteries and backups are sized well.'), stOf(ev, ['battery', 'rad'])) + `<div class="gp-body">${html}</div>` + foot(ctx);
+      return head(id, ctx, goalOf(ev, ['battery', 'rad', 'adcs'], 'Batteries, backups and pointing are sized well.'), stOf(ev, ['battery', 'rad', 'adcs'])) + `<div class="gp-body">${html}</div>` + foot(ctx);
     }
     case 'landing': {
       const rover = ev.mass.rover ?? 0;
@@ -351,7 +360,7 @@ export function panelHTML(id: StationId, d: Design, ev: Evaluation, ctx: PanelCt
           const fill = cap ? Math.min(1, ev.mass.launch / Math.max(1, cap)) : 0;
           const nm = r.id === 'atlasv551s48' ? 'Atlas V + Star 48B' : r.id === 'falconheavy' ? 'Falcon Heavy' : r.name;
           return `<button class="grk ${d.rocketId === r.id ? 'sel' : ''} ${cap !== null && !ok ? 'cant' : ''}" data-act="h-pick" data-key="rocketId:${r.id}" title="${esc(r.desc + ' Flew: ' + r.flew + '.')}">
-            <span class="grk-n">${esc(nm)}</span><span class="grk-p">$${fmtM(r.costM)}</span>
+            <span class="grk-n">${esc(nm)}${r.agency ? ` <em class="grk-ag">${esc(r.agency)}</em>` : ''}</span><span class="grk-p">$${fmtM(r.costM)}</span>
             <span class="grk-bar"><i style="width:${fill * 100}%"></i></span>
             <span class="grk-c">${cap === null ? 'pick a launch date first' : `lifts ${fmtInt(cap)} kg · you need ${fmtInt(ev.mass.launch)} kg`}</span></button>`;
         }).join('')}</div>

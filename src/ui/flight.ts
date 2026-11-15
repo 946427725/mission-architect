@@ -1,7 +1,7 @@
 // Plays the simulated mission in 3D: launch, cruise, flyby, arrival, science.
 import { encodeDesign } from '../game/persist';
 import { hashString } from '../game/rng';
-import { SimEvent, SimResult, simulate } from '../game/simulate';
+import { CallId, CallPoint, Calls, ROLE_INFO, SimEvent, SimResult, simulate } from '../game/simulate';
 import { missionOf } from '../game/state';
 import { AU, BODIES } from '../physics/constants';
 import { planetState } from '../physics/ephemeris';
@@ -30,12 +30,28 @@ export class FlightPlayer {
   private endAfterPause = false;
   /** the real-looking 3D flight (launch to landing) */
   private cin: SpaceCinema | null = null;
+  // Mission Control decisions
+  private seed: number;
+  private calls: Calls = {};
+  private autopilot: CallId[] = [];
+  private callOpen: { ev: SimEvent; call: CallPoint; t0: number } | null = null;
+  private callKeys = (e: KeyboardEvent) => {
+    if (!this.callOpen) return;
+    const n = Number(e.key);
+    if (n >= 1 && n <= this.callOpen.call.options.length) {
+      e.preventDefault();
+      e.stopPropagation();
+      this.choose(this.callOpen.call.options[n - 1].id, false);
+    }
+  };
+  private static CALL_SECONDS = 30;
 
   constructor(private app: App) {
     const d = app.design!;
     const seed = app.demoSeed !== null ? (app.demoSeed + app.attempt - 1) >>> 0 : (hashString(encodeDesign(d)) ^ Math.imul(app.attempt, 2654435761)) >>> 0;
     this.speed = app.demoSpeed;
-    this.sim = simulate(d, app.ev!, seed, app.team.enabled);
+    this.seed = seed;
+    this.sim = simulate(d, app.ev!, seed, app.team.enabled, this.calls);
     app.sim = this.sim;
     this.jd = d.transfer!.launchJD;
   }
@@ -53,11 +69,14 @@ export class FlightPlayer {
     if (this.cin) this.cin.speed = this.speed;
     this.renderHUD();
     this.last = performance.now();
+    window.addEventListener('keydown', this.callKeys, true);
     requestAnimationFrame((t) => this.tick(t));
   }
 
   stop() {
     this.stopped = true;
+    this.callOpen = null;
+    window.removeEventListener('keydown', this.callKeys, true);
     sound.droneStop();
     this.cin?.stop();
     this.app.hangar.endSpace();
@@ -77,6 +96,8 @@ export class FlightPlayer {
       document.querySelectorAll('#hud .speed button').forEach((b) => b.classList.toggle('on', (b as HTMLElement).dataset.val === el.dataset.val));
     } else if (act === 'skip') {
       this.finish();
+    } else if (act === 'mc-pick' && this.callOpen && el.dataset.val) {
+      this.choose(el.dataset.val, false);
     }
   }
 
@@ -175,8 +196,11 @@ export class FlightPlayer {
     const feed = $('#h-feed');
     if (!feed) return;
     const card = document.createElement('div');
-    card.className = `ev ${ev.tone}`;
-    card.innerHTML = `<div class="ev-date">${formatJD(ev.jd)}</div><b>${esc(ev.title)}</b><p>${esc(ev.text)}</p>${ev.saved ? `<span class="saved">Saved by: ${esc(ev.saved)}</span>` : ''}`;
+    const c = ev.call;
+    card.className = `ev ${c ? c.tone : ev.tone}${c ? ' call' : ''}`;
+    card.innerHTML = c
+      ? `<div class="ev-date">${formatJD(ev.jd)} · Mission Control</div><b>${esc(ev.title)}: ${esc(c.options.find((o) => o.id === c.chosen)?.label ?? '')}</b><p>${esc(c.result)}</p><span class="saved">${this.autopilot.includes(c.id) ? 'Autopilot decided (time ran out)' : c.decided ? `Your call · ${esc(ROLE_INFO[c.role].title)}` : 'Flight rules decided'}</span>`
+      : `<div class="ev-date">${formatJD(ev.jd)}</div><b>${esc(ev.title)}</b><p>${esc(ev.text)}</p>${ev.saved ? `<span class="saved">Saved by: ${esc(ev.saved)}</span>` : ''}`;
     feed.prepend(card);
     const pinIdx = this.sim.events.filter((e) => e.phase !== 'launch' && e.phase !== 'end' && e.title !== 'Trajectory correction 1').indexOf(ev);
     if (pinIdx >= 0) document.querySelector(`.j-pin[data-pin="${pinIdx}"]`)?.classList.add('hit');
@@ -189,9 +213,10 @@ export class FlightPlayer {
       }
     }
     if (ev.phase !== 'launch' && ev.phase !== 'end') {
-      if (ev.tone === 'critical') sound.alarm();
-      else if (ev.tone === 'bad') sound.bad();
-      else if (ev.tone === 'good') sound.good();
+      const tone = c ? c.tone : ev.tone;
+      if (tone === 'critical') sound.alarm();
+      else if (tone === 'bad') sound.bad();
+      else if (tone === 'good') sound.good();
       else sound.quindar();
     }
     while (feed.children.length > 4) feed.lastElementChild?.remove();
@@ -219,6 +244,15 @@ export class FlightPlayer {
     const m = missionOf(d);
     const tr = d.transfer!;
     if (this.cin) this.cin.speed = this.speed;
+    if (this.callOpen) {
+      const left = FlightPlayer.CALL_SECONDS - (now - this.callOpen.t0) / 1000;
+      const tl = document.getElementById('mc-left');
+      if (tl) tl.textContent = `${Math.max(0, Math.ceil(left))} s`;
+      if (left <= 0) this.choose(this.callOpen.call.auto, true);
+      this.updateHUD();
+      requestAnimationFrame((t) => this.tick(t));
+      return;
+    }
     if (this.cin?.blocking()) {
       this.pauseUntil = Math.max(this.pauseUntil, now + 200);
       this.updateHUD();
@@ -234,6 +268,14 @@ export class FlightPlayer {
       const rate = this.jd < tr.arriveJD ? tr.tofDays / cruiseSec : m.primaryDays / 8;
       let nj = this.jd + rate * dt;
       const ev = this.sim.events[this.next];
+      if (ev && nj >= ev.jd && ev.call && this.calls[ev.call.id] === undefined) {
+        // Mission Control: stop the clock and ask the player
+        this.jd = Math.max(this.jd, ev.jd);
+        this.openCall(ev);
+        this.updateHUD();
+        requestAnimationFrame((t) => this.tick(t));
+        return;
+      }
       if (ev && nj >= ev.jd) {
         nj = Math.max(this.jd, ev.jd);
         this.next++;
@@ -256,6 +298,59 @@ export class FlightPlayer {
     this.app.view.setCraftAt(Math.min(this.jd, tr.arriveJD));
     this.updateHUD();
     requestAnimationFrame((t) => this.tick(t));
+  }
+
+  // ---------------------------------------------------------------- Mission Control
+  private openCall(ev: SimEvent) {
+    const call = ev.call!;
+    this.callOpen = { ev, call, t0: performance.now() };
+    const role = ROLE_INFO[call.role];
+    const who = this.app.team.enabled ? `${esc(this.app.playerForRole(call.role))} · ${esc(role.title)}` : esc(role.title);
+    const box = document.createElement('div');
+    box.className = 'mc-call';
+    box.id = 'mc-call';
+    box.setAttribute('role', 'dialog');
+    box.setAttribute('aria-label', `Mission Control decision: ${call.title}`);
+    box.style.setProperty('--rc', role.color);
+    box.innerHTML = `
+      <div class="mc-head"><span class="mc-kicker"><i></i>Mission Control · your call</span><span class="mc-role">${who}</span></div>
+      <h3>${esc(call.title)}</h3>
+      <p class="mc-prompt">${esc(call.prompt)}</p>
+      <div class="mc-opts">${call.options
+        .map((o, i) => `<button class="mc-opt" data-act="mc-pick" data-val="${o.id}"><b>${i + 1}</b><span>${esc(o.label)}</span><small>${esc(o.detail)}</small></button>`)
+        .join('')}</div>
+      <div class="mc-foot"><span class="mc-timer"><i style="animation-duration:${FlightPlayer.CALL_SECONDS}s"></i></span><span>If nobody answers, the autopilot plays it safe in <b id="mc-left">${FlightPlayer.CALL_SECONDS} s</b> · keys 1-${call.options.length}</span></div>`;
+    $('#hud').appendChild(box);
+    sound.quindar();
+    setTimeout(() => box.classList.add('in'), 20);
+  }
+
+  private choose(optId: string, auto: boolean) {
+    const open = this.callOpen;
+    if (!open) return;
+    const id = open.call.id;
+    this.calls[id] = optId;
+    if (auto) this.autopilot.push(id);
+    this.callOpen = null;
+    document.getElementById('mc-call')?.remove();
+    sound.click();
+    // re-fly the mission with this decision: the same luck, a new future
+    const d = this.app.design!;
+    this.sim = simulate(d, this.app.ev!, this.seed, this.app.team.enabled, this.calls);
+    this.sim.autopilot = [...this.autopilot];
+    this.app.sim = this.sim;
+    this.cin?.updateSim(this.sim);
+    const idx = this.sim.events.findIndex((e) => e.call?.id === id);
+    this.next = Math.max(0, idx);
+    const j = document.querySelector('#hud .journey');
+    if (j) {
+      j.outerHTML = this.journeyHTML();
+      const pins = this.sim.events.filter((e) => e.phase !== 'launch' && e.phase !== 'end' && e.title !== 'Trajectory correction 1');
+      pins.forEach((e, i) => {
+        if (e.jd < this.jd) document.querySelector(`.j-pin[data-pin="${i}"]`)?.classList.add('hit');
+      });
+    }
+    this.last = performance.now();
   }
 
   /** Mars entry, descent and landing in four beats. Returns its duration in ms. */
@@ -296,6 +391,7 @@ export class FlightPlayer {
   finish() {
     if (this.finished) return;
     this.finished = true;
+    if (this.autopilot.length) this.sim.autopilot = [...this.autopilot];
     this.stop();
     this.app.screen = 'report';
     this.app.render();

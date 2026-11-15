@@ -108,6 +108,17 @@ export function renderReport(app: App): string {
   const whyItems = why.length ? why.join('') : '<li class="good"><b>No surprises at all</b> - textbook systems engineering.</li>';
   const maxItem = Math.max(1, ...sim.score.items.map(([, v]) => Math.abs(v)));
   const objName = (m.objectives.find((o) => o.id === d.objectiveId) ?? m.objectives[0]).name;
+  const calls = sim.events.filter((e) => e.call).map((e) => e.call!);
+  const callsHTML = calls.length
+    ? `<section class="rp-card rp-calls"><h3>Your Mission Control calls</h3><ul class="why">${calls
+        .map((c) => {
+          const cls = c.tone === 'good' ? 'good' : c.tone === 'info' ? 'warn' : 'bad';
+          const opt = c.options.find((o) => o.id === c.chosen);
+          const who = sim.autopilot?.includes(c.id) ? 'autopilot · time ran out' : c.decided ? ROLE_INFO[c.role].title : 'flight rules · skipped';
+          return `<li class="${cls}"><i class="rp-ic">${icon(cls)}</i><div><b>${esc(c.title)}: ${esc(opt?.label ?? c.chosen)}</b> <small class="rp-who">${esc(who)}</small><p>${esc(c.result)}</p></div></li>`;
+        })
+        .join('')}</ul></section>`
+    : '';
   return `<div class="report rp ${sim.outcome}" id="report" style="--mc:${ACC[m.id] ?? '#4cc9ff'};--oc:${OUT[sim.outcome]}">
     <header class="rp-top">
       <div class="rp-crumb"><span>Post-mission report</span><b>${esc(m.name)}</b><em>${BODIES[m.target].name} · ${esc(objName)} · ${esc(d.difficulty)}</em></div>
@@ -137,12 +148,14 @@ export function renderReport(app: App): string {
       <section class="rp-card rp-why"><h3>Why it turned out this way</h3><ul class="why">${whyItems.replace(/<li class="(good|warn|bad)">/g, (_x, t) => `<li class="${t}"><i class="rp-ic">${icon(t)}</i><div>`).replace(/<\/li>/g, '</div></li>')}</ul></section>
       <section class="rp-card rp-whatif"><h3>${sim.outcome === 'success' ? 'Could you score even higher?' : 'One change that would have helped most'}</h3>${whatIfHTML}</section>
 
+      ${callsHTML}
       <section class="rp-card rp-compare"><h3>You vs NASA</h3>
         <div class="rp-cmp">
           <div class="rp-col you"><h4><i></i>Your mission</h4>${myRows.map(([k, v]) => `<div class="kvrow"><span>${k}</span><b>${esc(v)}</b></div>`).join('')}</div>
           <div class="rp-col nasa"><h4><i></i>${esc(m.nasa.name)}</h4>${m.nasa.facts.map(([k, v]) => `<div class="kvrow"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('')}</div>
         </div>
         <p class="lesson"><b>Lesson from the real mission:</b> ${esc(m.nasa.lesson)} <a href="${m.nasa.url}" target="_blank" rel="noopener">Learn more at NASA ↗</a> · <button class="link-btn inline" data-act="validation">How we validated the physics</button></p>
+        ${m.partner ? `<div class="rp-partner"><h4><span>${esc(m.partner.agency)}</span> Also compare: ${esc(m.partner.name)}</h4><div class="rp-pfacts">${m.partner.facts.map(([k, v]) => `<div><i>${esc(k)}</i><b>${esc(v)}</b></div>`).join('')}</div><p>${esc(m.partner.lesson)} <a href="${m.partner.url}" target="_blank" rel="noopener">Learn more at ${esc(m.partner.agency)} ↗</a></p></div>` : ''}
       </section>
 
       <section class="rp-card rp-log"><h3>Mission log</h3><ol class="log">${sim.events.map((e) => `<li class="${e.tone}"><span>${formatJD(e.jd)}</span><b>${esc(e.title)}</b></li>`).join('')}</ol></section>

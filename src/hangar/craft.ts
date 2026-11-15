@@ -4,6 +4,8 @@
 import * as THREE from 'three';
 import { ANTENNAS, POWER } from '../data/parts';
 import { Design, missionOf } from '../game/state';
+
+const mission0 = (d: Design) => missionOf(d).defaults.adcsId ?? 'spin';
 import { M, Mats, at, box, cyl, dishModel, mergeStatic, rbox, rod, shade, sph, torus, v3 } from './kit';
 
 type G = THREE.Group;
@@ -302,6 +304,53 @@ export function instrumentModel(id: string, m: Mats = M()): G {
   }
 }
 
+/** Attitude control hardware: reaction wheels, thruster pods, star trackers, sun sensors. */
+export function adcsModel(id: string, m: Mats = M()): G {
+  const g = new THREE.Group();
+  const tracker = (): G => {
+    const t = new THREE.Group();
+    t.add(rbox(0.11, 0.1, 0.11, 0.01, m.darkMetal));
+    const baffle = cyl(0.045, 0.065, 0.15, m.mliBlack, 16, true);
+    baffle.position.set(0, 0.1, 0.02);
+    baffle.rotation.x = -0.35;
+    t.add(baffle);
+    return t;
+  };
+  const nozzles = (r: number, y: number) => {
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+      const n = cyl(0.014, 0.034, 0.07, m.darkMetal, 12, true);
+      n.position.set(Math.cos(a) * r, y, Math.sin(a) * r);
+      n.rotation.set(Math.sin(a) * (Math.PI / 2), 0, -Math.cos(a) * (Math.PI / 2));
+      g.add(n);
+    }
+  };
+  if (id === 'wheels') {
+    g.add(rbox(0.38, 0.12, 0.38, 0.015, m.goldAnod));
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI * 2;
+      const w = cyl(0.085, 0.085, 0.05, m.steel, 28);
+      w.position.set(Math.cos(a) * 0.1, 0.12, Math.sin(a) * 0.1);
+      w.rotation.set(Math.sin(a) * 0.55, 0, -Math.cos(a) * 0.55);
+      g.add(w);
+      g.add(at(cyl(0.02, 0.02, 0.055, m.darkMetal, 10), Math.cos(a) * 0.1, 0.12, Math.sin(a) * 0.1));
+    }
+    g.add(at(tracker(), 0.27, 0.0, 0.08));
+  } else if (id === 'thrusters') {
+    g.add(rbox(0.24, 0.1, 0.24, 0.01, m.alu));
+    nozzles(0.13, 0);
+    g.add(at(cyl(0.05, 0.05, 0.12, m.titanium, 16), 0, 0.1, 0));
+    g.add(at(tracker(), 0.2, 0.0, -0.1));
+    g.add(at(tracker(), 0.2, 0.0, 0.1));
+  } else {
+    g.add(rbox(0.22, 0.08, 0.22, 0.01, m.alu));
+    nozzles(0.12, 0);
+    g.add(at(cyl(0.035, 0.035, 0.03, m.goldAnod, 14), 0, 0.055, 0)); // sun sensor
+    g.add(at(torus(0.07, 0.008, m.steel), 0, 0.045, 0, Math.PI / 2, 0, 0)); // spin-axis marker ring
+  }
+  return g;
+}
+
 /** Landing systems (used in the landing bay and integrated with the rover). */
 export function landingModel(id: string, s: number, m: Mats = M(), integrated = false): G {
   const g = new THREE.Group();
@@ -521,6 +570,9 @@ function buildRover(d: Design, m: Mats): { model: G; scale: number } {
   // backup computer + battery shown as gold boxes on the deck
   if (d.avionicsId === 'dual') r.add(at(grp('avionics', rbox(0.3, 0.12, 0.26, 0.01, m.goldAnod)), 0.25, 1.39, -0.25));
   if (d.batteryId !== 'none') r.add(at(grp('battery', rbox(d.batteryId === 'bat-l' ? 0.36 : 0.24, 0.12, 0.2, 0.01, m.blueAnod)), -0.5, 1.39, 0.4));
+  const adcsPart = at(grp('adcs', adcsModel(d.adcsId ?? mission0(d), m)), 0.42, 1.37, 0.55);
+  adcsPart.scale.setScalar(0.7);
+  r.add(adcsPart);
 
   r.scale.setScalar(s);
   // landing system under the rover
@@ -614,6 +666,7 @@ function buildProbe(d: Design, m: Mats): G {
   g.add(at(grp('tx', rbox(0.22, 0.14, 0.3, 0.01, m.goldAnod)), busR * 0.5, base + busH + 0.08, busR * 0.25));
   if (d.avionicsId === 'dual') g.add(at(grp('avionics', rbox(0.34, 0.14, 0.3, 0.01, m.goldAnod)), -busR * 0.5, base + busH + 0.09, busR * 0.25));
   if (d.batteryId !== 'none') g.add(at(grp('battery', rbox(d.batteryId === 'bat-l' ? 0.42 : 0.28, 0.14, 0.24, 0.01, m.blueAnod)), -busR * 0.1, base + busH + 0.09, -busR * 0.55));
+  g.add(at(grp('adcs', adcsModel(d.adcsId ?? mission0(d), m)), busR * 0.5, base + busH + 0.08, -busR * 0.42));
 
   // power
   const pw = POWER.find((p) => p.id === d.powerId)!;

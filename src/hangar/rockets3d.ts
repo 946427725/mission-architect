@@ -109,6 +109,52 @@ export function buildRocket(id: string): THREE.Group {
       for (const y of [37, 46, 53]) g.add(at(cyl(2.72, 2.72, 0.1, m.paintGrey, 48, true), 0, y, 0));
       break;
     }
+    case 'ariane64': {
+      // ESA Ariane 64: 5.4 m core with a Vulcain engine, four P120C solid boosters, long fairing
+      const r = 2.7;
+      g.add(at(cyl(r, r, 30, m.paintWhite, 48), 0, 15 + 1.2, 0));
+      g.add(at(cyl(r * 1.02, r, 1.2, m.paintDark, 48), 0, 0.6, 0));
+      g.add(engines(1, r, 1.0));
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+        const b = new THREE.Group();
+        b.add(at(cyl(1.7, 1.7, 13.5, m.paintWhite, 32), 0, 6.75 + 1, 0));
+        b.add(at(ogive(1.7, 3.6, m.paintWhite, 32), 0, 14.5, 0));
+        b.add(at(cyl(0.9, 1.4, 1.6, m.darkMetal, 20, true), 0, 0.4, 0));
+        b.add(at(cyl(1.72, 1.72, 0.5, m.paintDark, 32, true), 0, 9, 0));
+        b.position.set(Math.cos(a) * (r + 1.75), 0, Math.sin(a) * (r + 1.75));
+        g.add(b);
+      }
+      g.add(at(cyl(r, r, 2.2, m.paintDark, 48), 0, 32.3, 0)); // interstage
+      g.add(at(cyl(r, r, 9.5, m.paintWhite, 48), 0, 38.2, 0)); // upper stage
+      g.add(at(cyl(r, r, 12, m.paintWhite, 48), 0, 49, 0)); // fairing
+      g.add(at(ogive(r, 8, m.paintWhite), 0, 55, 0));
+      for (const y of [33.4, 43]) g.add(at(cyl(r * 1.01, r * 1.01, 0.12, m.paintGrey, 48, true), 0, y, 0));
+      break;
+    }
+    case 'h3': {
+      // JAXA H3-24: 5.2 m core with two LE-9 engines, four SRB-3 boosters
+      const r = 2.6;
+      g.add(at(cyl(r, r, 37, m.paintWhite, 48), 0, 18.5 + 1.2, 0));
+      g.add(at(cyl(r * 1.02, r, 1.2, m.paintDark, 48), 0, 0.6, 0));
+      g.add(engines(2, r, 0.8));
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * Math.PI * 2;
+        const b = new THREE.Group();
+        b.add(at(cyl(1.25, 1.25, 14.5, m.paintWhite, 28), 0, 7.25 + 1, 0));
+        b.add(at(ogive(1.25, 3.2, m.paintWhite, 28), 0, 15.2, 0));
+        b.add(at(cyl(0.7, 1.05, 1.4, m.darkMetal, 20, true), 0, 0.4, 0));
+        b.position.set(Math.cos(a) * (r + 1.3), 0, Math.sin(a) * (r + 1.3));
+        g.add(b);
+      }
+      g.add(at(cyl(r, r, 1.6, m.paintDark, 48), 0, 39.5, 0));
+      g.add(at(cyl(2.0, r, 1.2, m.paintWhite, 48), 0, 40.9, 0));
+      g.add(at(cyl(2.0, 2.0, 9, m.paintWhite, 40), 0, 46, 0));
+      g.add(at(cyl(r, 2.0, 1.6, m.paintWhite, 48), 0, 51.3, 0));
+      g.add(at(cyl(r, r, 6, m.paintWhite, 48), 0, 55.1, 0));
+      g.add(at(ogive(r, 7, m.paintWhite), 0, 58.1, 0));
+      break;
+    }
     case 'sls': {
       const r = 4.2;
       g.add(at(cyl(r, r, 65, foam(), 56), 0, 32.5 + 1, 0));

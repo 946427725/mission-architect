@@ -87,15 +87,15 @@ function planet(id: BodyId, radius: number, sunDir: THREE.Vector3): THREE.Group 
       return (b + (r() - 0.5) * 0.16) * 512;
     };
     x.filter = 'blur(6px)';
-    for (let i = 0; i < 520; i++) {
-      x.fillStyle = `rgba(255,255,255,${0.05 + r() * 0.1})`;
+    for (let i = 0; i < 240; i++) {
+      x.fillStyle = `rgba(255,255,255,${0.03 + r() * 0.07})`;
       x.beginPath();
       x.ellipse(r() * 1024, lat(), 18 + r() * 80, 4 + r() * 12, (r() - 0.5) * 0.4, 0, Math.PI * 2);
       x.fill();
     }
     x.filter = 'blur(1.5px)';
-    for (let i = 0; i < 900; i++) {
-      x.fillStyle = `rgba(255,255,255,${0.05 + r() * 0.12})`;
+    for (let i = 0; i < 380; i++) {
+      x.fillStyle = `rgba(255,255,255,${0.03 + r() * 0.08})`;
       x.beginPath();
       x.ellipse(r() * 1024, lat(), 3 + r() * 16, 1 + r() * 3, (r() - 0.5) * 0.6, 0, Math.PI * 2);
       x.fill();
@@ -522,7 +522,7 @@ export class SpaceCinema {
 
     this.ui = document.createElement('div');
     this.ui.className = 'sc-ui';
-    this.ui.innerHTML = `<div class="sc-cap"><span class="sc-phase"></span><b></b><p></p></div><canvas class="sc-map" width="440" height="440"></canvas>`;
+    this.ui.innerHTML = `<div class="sc-cap"><span class="sc-phase"></span><b></b><p></p></div><canvas class="sc-map" width="440" height="440"></canvas><div class="sc-credit">Planet images: NASA Blue Marble · NASA Viking (USGS) · NASA/JPL/SSI Cassini · NASA/JHUAPL/SwRI New Horizons</div>`;
     document.body.appendChild(this.ui);
     this.map = this.ui.querySelector('.sc-map') as HTMLCanvasElement;
   }
@@ -722,7 +722,18 @@ export class SpaceCinema {
     else if (/Safe mode|Computer reset|Reaction wheel/.test(t)) this.warn = 4;
     else if (t === 'Global dust storm') this.storm = 1;
     else if (t === 'Radiation ends the mission early') this.warn = 6;
+    else if (t === 'Spacecraft lost') {
+      this.warn = 3;
+      sound.alarm();
+      this.play('lost', 9999, false);
+    }
     void m;
+  }
+
+  /** A Mission Control decision re-flew the mission: the landing (or loss) may change. */
+  updateSim(sim: SimResult) {
+    this.sim = sim;
+    this.fail.landing = sim.events.some((e) => e.title === 'Landing failure');
   }
 
   setProgress(jd: number, cruiseFrac: number, tel: Telemetry) {
@@ -1429,7 +1440,7 @@ export class SpaceCinema {
     // Pluto grows ahead, then sweeps past on the left (never through the camera)
     pl.position.set(-200 - k * 260, -70, -1700 + k * 1850);
     ch.position.copy(pl.position).add(V(-380, 150, -650));
-    pl.rotation.y += 0.002;
+    pl.rotation.y = -0.8 - (k - 0.7) * 0.35; // Tombaugh Regio (the 'heart') faces us at closest approach
     this.craft.rotation.y = -0.4 + k * 0.8;
     // camera behind the spacecraft, looking past it at Pluto
     const dir = pl.position.clone().normalize();
