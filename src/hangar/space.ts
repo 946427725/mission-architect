@@ -3,6 +3,7 @@
 // entry / parachute / landing, Jupiter orbit insertion, or the Pluto flyby.
 // Driven by the FlightPlayer timeline and the simulated events.
 import * as THREE from 'three';
+import { tr as trText } from '../i18n/i18n';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -1642,6 +1643,6 @@ export class SpaceCinema {
     ctx.fillStyle = 'rgba(238,243,248,0.85)';
     ctx.font = '600 22px "IBM Plex Mono", monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('ROUTE · TOP VIEW', W / 2, W - 26);
+    ctx.fillText(trText('ROUTE · TOP VIEW'), W / 2, W - 26, W * 0.62);
   }
 }

@@ -6,7 +6,11 @@
 
 A 3D first-person game for the NASA Space Apps Challenge 2026 *Space Mission Design Game* challenge. You are a clean-room engineer in a spacecraft assembly high bay, seeing it through your own eyes. Walk to the racks, pick real hardware off the shelves (nuclear batteries, solar arrays, dishes, attitude control, instruments), carry it to the spacecraft on the stand and install it; the overhead crane moves the big parts. Every part changes mass, power, Δv, budget, data and science, and the gauges show the trade-off before you commit. Pick a launch date at the Flight Dynamics desk (real Lambert trajectories from NASA/JPL planet positions), choose a rocket, pass the GO/NO-GO poll at the launch gate, watch the launch from the pad, then follow your own spacecraft in 3D all the way: fairing and spacecraft separation over the Earth, the cruise, and the arrival (Mars entry, parachute, sky crane / retro rockets / airbags and touchdown; Jupiter orbit insertion burn; the Pluto and Charon flyby), with events taken from real missions and **Mission Control decisions** you make yourself (course correction, landing site, dust-storm hibernation, Juno's valve anomaly, New Horizons' hazard search, planetary protection), on real NASA planet maps, and get a report that explains *why* it succeeded or failed and how it compares with Perseverance, Juno or New Horizons (and ESA's JUICE and Rosalind Franklin). Solo or a team of up to 4, each player an engineer with their own role and stations.
 
+New players start with a **4-minute training mission** (a guided first flight to Mars). The whole game can be switched between **English and Uzbek** at any time, and Settings add a **colour-blind safe palette** and **reduced motion**.
+
 ## Judge quick path (about 2 minutes)
+
+New to the game? Click **New? Training (4 min)** on the title screen instead: a coach card walks you through one full mission. To see the Uzbek version, click **O'zbekcha** on the title screen (or Menu → Settings in game).
 
 1. **Play → Red Horizon → Fly NASA's design.** A Perseverance-style rover is on the stand and every station is GO.
 2. Click **Launch!** on the task list: the engineer walks to the launch gate. **Press and hold Launch.** The door opens, the pad cinematic plays, then the flight in 3D: climb, fairing separation over the Earth, cruise, atmospheric entry, parachute, the sky crane lowering the rover on cables, touchdown. Captions explain each step.
@@ -31,7 +35,7 @@ Repeatable demo link (same events every time): `?mission=mars&preset=nasa&seed=1
 ```bash
 npm install
 npm run dev           # http://localhost:5173
-npm test              # physics validation, balance, analysis and decision tests (19)
+npm test              # physics validation, balance, analysis, decision and training tests (21)
 npm run build         # static site in dist/
 npm run build:single  # one self-contained file: single/index.html
 npm run build:exe     # Windows portable app in desktop/dist-exe/ (run `npm install` in desktop/ first)

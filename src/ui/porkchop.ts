@@ -1,4 +1,5 @@
 import { settings } from './settings';
+import { tr } from '../i18n/i18n';
 // Interactive porkchop plot: launch date (x) vs flight time (y), coloured by
 // launch energy C3. Hover previews the trajectory, click selects it.
 
@@ -180,7 +181,7 @@ export class PorkchopView {
       if (xr - p.x > 70) {
         ctx.fillStyle = '#8a5a00';
         ctx.font = '600 10px "IBM Plex Mono", monospace';
-        ctx.fillText('NOT READY', p.x + 6, p.y + 14);
+        ctx.fillText(tr('NOT READY'), p.x + 6, p.y + 14);
       }
     }
     // too-long region
@@ -197,7 +198,7 @@ export class PorkchopView {
       ctx.setLineDash([]);
       ctx.fillStyle = settings.colorblind ? '#c75400' : '#d3263a';
       ctx.font = '600 10px "IBM Plex Mono", monospace';
-      ctx.fillText('TOO LONG', p.x + p.w - 64, y - 5);
+      ctx.fillText(tr('TOO LONG'), p.x + p.w - 64, y - 5);
     }
 
     // rocket reach outline
@@ -231,7 +232,7 @@ export class PorkchopView {
       ctx.fillStyle = 'rgba(236,237,233,0.85)';
       ctx.fillRect(p.x + p.w - tw - 10, p.y + 4, tw + 8, 15);
       ctx.fillStyle = '#121314';
-      ctx.fillText(label, p.x + p.w - 6, p.y + 15);
+      ctx.fillText(tr(label), p.x + p.w - 6, p.y + 15);
       ctx.textAlign = 'left';
     }
 
@@ -251,7 +252,7 @@ export class PorkchopView {
       ctx.fillText(String(y), x, p.y + p.h + 14);
       ctx.fillRect(x, p.y + p.h, 1, 4);
     }
-    ctx.fillText('Launch date →', p.x + p.w / 2, p.y + p.h + 27);
+    ctx.fillText(tr('Launch date →'), p.x + p.w / 2, p.y + p.h + 27);
     ctx.textAlign = 'right';
     const years = s.tofMaxDays > 1500;
     const ticks = 5;
@@ -264,7 +265,7 @@ export class PorkchopView {
     ctx.translate(10, p.y + p.h / 2);
     ctx.rotate(-Math.PI / 2);
     ctx.textAlign = 'center';
-    ctx.fillText('Flight time', 0, 0);
+    ctx.fillText(tr('Flight time'), 0, 0);
     ctx.restore();
 
     // selected
@@ -288,7 +289,7 @@ export class PorkchopView {
       const tag = this.overlay.selectedLabel ?? 'YOU';
       ctx.fillRect(x + 10, y - 8, ctx.measureText(tag).width + 8, 15);
       ctx.fillStyle = '#ecede9';
-      ctx.fillText(tag, x + 14, y + 3);
+      ctx.fillText(tr(tag), x + 14, y + 3);
     }
     // hover crosshair
     if (this.hover) {

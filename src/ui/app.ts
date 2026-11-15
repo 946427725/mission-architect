@@ -998,7 +998,7 @@ export class App {
       <h3>NASA data sources</h3>
       <ul class="sources">${src.map(([k, t, u]) => `<li><b>${k}:</b> ${t}. <a href="${u}" target="_blank" rel="noopener">${u.replace('https://', '')}</a></li>`).join('')}</ul>
       <h3>Simplifications</h3>
-      <p class="note">Rocket curves, costs, instrument masses and powers are rounded public values chosen to keep the real trade-offs. Juno's Earth flyby, multi-revolution transfers and atmospheric drag are not modelled. This is a teaching game, not flight software.</p>
+      <p class="note">Rocket, cost and instrument numbers are rounded public values that keep the real trade-offs. Not modelled: Juno's Earth flyby, multi-revolution transfers, drag. A teaching game, not flight software.</p>
     </div>`);
   }
 
@@ -1171,7 +1171,7 @@ export class App {
     const lb = loadLeaderboard().slice(0, 3);
     return `<div class="title-card">
       <div class="eyebrow">NASA Space Apps Challenge 2026 · Space Mission Design Game</div>
-      <h1><span class="w"><span>Mission</span></span><span class="w"><span>Architect</span></span></h1>
+      <h1 translate="no"><span class="w"><span>Mission</span></span><span class="w"><span>Architect</span></span></h1>
       <p class="tagline">Build a real spacecraft by hand. <b>Physics decides</b> if it flies.</p>
       <div class="play-hint"><span>Real NASA/JPL orbits</span><span>1–4 players</span><span>Mars · Jupiter · Pluto</span></div>
       <div class="cta on-space">
@@ -1195,13 +1195,13 @@ export class App {
       <h2>How it works</h2>
       <ol class="steps">
         <li><b>Trajectory.</b> Pick a launch date and trip length on a ${term('porkchop', 'porkchop plot')}. Planets must line up!</li>
-        <li><b>Spacecraft.</b> Choose power, batteries, computer redundancy, shielding and propellant.</li>
-        <li><b>Science.</b> Pick instruments. Each one adds science, plus mass, power, cost and data.</li>
-        <li><b>Comms & budget.</b> Size your antenna and Deep Space Network time so the data gets home.</li>
+        <li><b>Spacecraft.</b> Choose power, batteries, backups, shielding and fuel.</li>
+        <li><b>Science.</b> Each instrument adds science, but also mass, power, cost and data.</li>
+        <li><b>Comms & budget.</b> Size the antenna so the data gets home, and stay on budget.</li>
         <li><b>Launch.</b> Pick a rocket strong enough for your mass and launch energy, pass the GO/NO-GO poll and fly. Random events will test your margins.</li>
       </ol>
       <h3>Team mode (up to 4 players)</h3>
-      <p>Each player owns a role: Flight Dynamics, Spacecraft Engineer, Principal Investigator, or Ground & Budget Lead. Every role has a personal goal, every change resets the sign-offs, and the mission launches only when the whole team agrees.</p>
+      <p>Each player owns a role (Flight Dynamics, Engineer, Scientist, Ground & Budget) with a personal goal. The rocket launches only when the whole team signs off.</p>
       <h3>The physics is real</h3>
       <ul class="sources">
         <li>Planet positions: JPL "Approximate Positions of the Planets" (Standish) Keplerian elements.</li>

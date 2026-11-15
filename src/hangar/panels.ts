@@ -15,6 +15,7 @@ import { formatDuration, formatJD } from '../physics/time';
 import type { App } from '../ui/app';
 import { esc, fmtInt } from '../ui/dom';
 import { statusColor } from '../ui/settings';
+import { tr } from '../i18n/i18n';
 import { Gauge, St, Task } from './hud';
 import { BuiltStation, LiveScreen, StationId, stationById } from './stations';
 
@@ -236,7 +237,7 @@ export function panelHTML(id: StationId, d: Design, ev: Evaluation, ctx: PanelCt
         head(id, ctx, goalOf(ev, ['rover'], `Your rover weighs ${fmtInt(rover)} kg. This system can land it.`), stOf(ev, ['rover'])) +
         `<div class="gp-body"><div class="gc-grid one">${LANDINGS.map((l) =>
           partCard(d, ctx, 'landingId:' + l.id, { name: SHORT[l.id], sub: l.id === 'airbags' ? 'like Spirit & Opportunity' : l.id === 'retro' ? 'like Phoenix' : 'like Curiosity & Perseverance', big: fmtInt(l.maxRover), unit: 'kg max rover', small: `$${l.costM}M · landing risk ${(l.risk * 100).toFixed(0)}% · moved by crane`, bad: rover > l.maxRover, tag: rover > l.maxRover ? `✕ your rover is ${fmtInt(rover)} kg` : undefined, tagTone: 'bad', tip: l.desc }),
-        ).join('')}</div><p class="gp-note">Your rover's mass comes from its instruments and power source. A heavier rover needs a bigger (and pricier) landing system, which also makes the whole spacecraft heavier for the rocket.</p></div>` +
+        ).join('')}</div><p class="gp-note">Instruments and power make the rover heavier. A heavier rover needs a bigger, pricier landing system, and the rocket must lift it all.</p></div>` +
         foot(ctx, '<span class="gp-tip">Landing systems are moved by the overhead crane.</span>')
       );
     }
@@ -262,7 +263,7 @@ export function panelHTML(id: StationId, d: Design, ev: Evaluation, ctx: PanelCt
             <div class="gf-legend"><span>Δv you have: <b>${fmtInt(have)} m/s</b></span><span>${ev.dv.insertion > 0 ? `braking ${fmtInt(ev.dv.insertion * 1000)} · ` : ''}${ev.dv.flyby > 0 ? `flyby ${fmtInt(ev.dv.flyby * 1000)} · ` : ''}corrections ${fmtInt(ev.dv.tcm * 1000)}</span></div></div>
           <div class="gp-row"><button class="gp-btn hold" data-hold="fuel"><i></i>Hold to pump</button><button class="gp-btn ghost" data-hold="drain">Drain</button></div>
           <button class="gp-btn wide" data-act="h-fuel-auto">Auto: exactly enough + 15% spare</button>
-          <p class="gp-note">The rocket equation: every extra kilogram of fuel adds less Δv than the last, because it also has to push the fuel itself. And all of it is mass the rocket must lift.</p></div>` +
+          <p class="gp-note">The rocket equation: each extra kilogram of fuel adds less Δv than the last, because it must also push the fuel itself.</p></div>` +
         foot(ctx, '<span class="gp-tip">Tip: hold <kbd>E</kbd> to pump.</span>')
       );
     }
@@ -444,7 +445,7 @@ function frame(s: LiveScreen, title: string) {
   ctx.fillStyle = CY;
   ctx.font = `700 ${Math.round(H * 0.045)}px ${FONT}`;
   ctx.textBaseline = 'middle';
-  ctx.fillText(title, W * 0.025, H * 0.044);
+  ctx.fillText(tr(title), W * 0.025, H * 0.044);
 }
 
 function txt(ctx: CanvasRenderingContext2D, s: string, x: number, y: number, size: number, color = '#e8f1f8', weight = 600, font = FONT, align: CanvasTextAlign = 'left') {
@@ -452,7 +453,9 @@ function txt(ctx: CanvasRenderingContext2D, s: string, x: number, y: number, siz
   ctx.fillStyle = color;
   ctx.textAlign = align;
   ctx.textBaseline = 'alphabetic';
-  ctx.fillText(s, x, y);
+  // translated wall-screen text keeps the English layout (squeezed a little if longer)
+  const t = tr(s);
+  ctx.fillText(t, x, y, t === s ? undefined : ctx.measureText(s).width * 1.2 + size);
   ctx.textAlign = 'left';
 }
 

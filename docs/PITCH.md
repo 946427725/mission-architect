@@ -6,7 +6,7 @@
 Mission Architect
 
 ## High-level summary (≈150 words)
-Mission Architect is a 3D browser game in which students, solo or in teams of up to four, play engineers in a spacecraft assembly clean room, seen in first person through their own eyes, and build a real interplanetary mission by hand. They pick hardware off the racks (nuclear batteries, solar arrays, dishes, 24 instruments modelled on real NASA instruments), carry it to the spacecraft and install it, while live gauges show how each part changes mass, power, Δv, budget, data and science. At the Flight Dynamics desk they choose a launch window on a porkchop plot where every pixel is a Lambert trajectory computed from NASA/JPL planet positions, then pick one of five real rockets and pass the GO/NO-GO poll. The launch plays out on the pad, then they follow the spacecraft they built in 3D from liftoff to arrival (fairing separation over the Earth, the cruise, Mars entry with parachute and sky crane, Jupiter orbit insertion, or the Pluto and Charon flyby) with events drawn from real incidents, and a report explains why it succeeded or failed, finds the single change that would have helped most, and compares it with Perseverance, Juno or New Horizons.
+Mission Architect is a 3D browser game in which students, solo or in teams of up to four, play engineers in a spacecraft assembly clean room, seen in first person through their own eyes, and build a real interplanetary mission by hand. They pick hardware off the racks (nuclear batteries, solar arrays, dishes, 24 instruments modelled on real NASA instruments), carry it to the spacecraft and install it, while live gauges show how each part changes mass, power, Δv, budget, data and science. At the Flight Dynamics desk they choose a launch window on a porkchop plot where every pixel is a Lambert trajectory computed from NASA/JPL planet positions, then pick one of seven real rockets (including ESA Ariane 64 and JAXA H3) and pass the GO/NO-GO poll. The launch plays out on the pad, then they follow the spacecraft they built in 3D from liftoff to arrival (fairing separation over the Earth, the cruise, Mars entry with parachute and sky crane, Jupiter orbit insertion, or the Pluto and Charon flyby) with events drawn from real incidents, and a report explains why it succeeded or failed, finds the single change that would have helped most, and compares it with Perseverance, Juno or New Horizons.
 
 ## Positioning (one sentence)
 Mission Architect turns NASA/JPL planet data and validated orbital mechanics into a game where students make the real trade-offs of mission design, fail safely, and learn why by comparing their mission with Perseverance, Juno and New Horizons.
@@ -17,7 +17,7 @@ Best Use of Science (main target), Most Inspirational, Art & Technology.
 ## What makes it different
 1. **The physics is real and checked against history.** Given only the real dates, the engine reproduces New Horizons' launch energy (158.8 vs 157.7 km²/s²), its Jupiter flyby distance (32.6 vs 32 Jupiter radii) and its Pluto speed (13.79 vs 13.8 km/s), and Mars 2020's launch energy (14.4 vs ≈14.5). Players can see this in-game in History mode.
 2. **Failure teaches.** No "wrong answer" screens. The game says *"At 32.9 AU sunlight is 0.09% of Earth's. You make 12 W but need 142 W on average - the spacecraft would freeze and shut down"* (giant solar wings on a New Horizons-style trip) and *"the solar panels could not keep the heaters on and the rover froze - the same way Opportunity died in 2018"*. Then it re-flies the mission with every possible single change and shows which one would have helped most.
-3. **There is no single correct design.** Automated tests prove two different winning designs exist for every mission, and every science objective is reachable.
+3. **There is no single correct design.** Automated tests prove two different winning designs exist for the Mars and Jupiter missions, that Pluto needs the Jupiter gravity assist (as New Horizons did), and that every science objective is reachable.
 4. **Real collaboration.** Four roles with conflicting personal goals; any change resets everyone's sign-off.
 
 ## Two ways to play (put this on the project page and on a pitch slide)
@@ -42,6 +42,11 @@ Slide text (short):
 
 ## Tools and references
 TypeScript, Three.js, Vite, Vitest, Google Fonts (Archivo, IBM Plex Mono). All sounds synthesized in code; all 3D models and textures generated in code; no NASA logos. AI tools were used for coding assistance: state this in the AI-use field.
+
+## For every student
+- A 4-minute guided training mission ("Show me" does any step for a stuck player).
+- English and Uzbek, switchable at any time: our team is from Uzbekistan.
+- Colour-blind safe palette (blue GO, orange NO-GO, symbols always shown) and reduced motion.
 
 ## Future work
 Online multiplayer (each player on their own device), more missions (Europa lander, Earth-observation satellite), Venus/Earth gravity assists, teacher dashboard.

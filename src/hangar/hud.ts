@@ -3,6 +3,7 @@
 // on-screen joystick for touch devices.
 import { esc, toast } from '../ui/dom';
 import { settings } from '../ui/settings';
+import { tr } from '../i18n/i18n';
 
 export type St = 'ok' | 'warn' | 'fail';
 
@@ -142,7 +143,10 @@ export class Hud {
       this.crossEl.classList.remove('on');
       return;
     }
-    if (this.aimEl.innerHTML !== html) this.aimEl.innerHTML = html;
+    if (this.aimEl.dataset.h !== html) {
+      this.aimEl.dataset.h = html;
+      this.aimEl.innerHTML = html;
+    }
     this.aimEl.classList.add('show');
     this.crossEl.classList.add('on');
   }
@@ -152,11 +156,17 @@ export class Hud {
   }
 
   setHeader(html: string) {
-    if (this.headEl.innerHTML !== html) this.headEl.innerHTML = html;
+    if (this.headEl.dataset.h !== html) {
+      this.headEl.dataset.h = html;
+      this.headEl.innerHTML = html;
+    }
   }
 
   setRole(html: string) {
-    if (this.roleEl.innerHTML !== html) this.roleEl.innerHTML = html;
+    if (this.roleEl.dataset.h !== html) {
+      this.roleEl.dataset.h = html;
+      this.roleEl.innerHTML = html;
+    }
     this.roleEl.classList.toggle('show', !!html);
   }
 
@@ -210,7 +220,10 @@ export class Hud {
 
   prompt(text: string | null, key = 'E') {
     const html = text ? `<kbd>${key}</kbd><span>${esc(text)}</span>` : '';
-    if (this.promptEl.innerHTML !== html) this.promptEl.innerHTML = html;
+    if (this.promptEl.dataset.h !== html) {
+      this.promptEl.dataset.h = html;
+      this.promptEl.innerHTML = html;
+    }
     this.promptEl.classList.toggle('show', !!text);
     this.useBtn.classList.toggle('show', !!text);
     const sp = this.useBtn.querySelector('span')!;
@@ -242,21 +255,22 @@ export class Hud {
     }
     this.radioEl.dataset.text = s.text;
     this.radioEl.innerHTML = `<div class="gr-av"><svg viewBox="0 0 40 40"><circle cx="20" cy="15" r="7"/><path d="M7 37c1.5-8 6.5-12 13-12s11.5 4 13 12"/><path class="hs" d="M11 15a9 9 0 0 1 18 0"/><rect class="hs" x="8.5" y="13" width="4" height="7" rx="1.5"/><rect class="hs" x="27.5" y="13" width="4" height="7" rx="1.5"/><path class="hs" d="M10.5 20c0 4 3 5.5 6 5.5"/></svg><i class="wave"><b></b><b></b><b></b><b></b></i></div>
-      <div class="gr-body"><div class="gr-who">${esc(s.who)} <span>· loop 1</span></div><p></p></div>
+      <div class="gr-body"><div class="gr-who">${esc(s.who)} <span>· loop 1</span></div><p translate="no"></p></div>
       <button class="gr-x" data-act="h-radio-x" aria-label="Dismiss">×</button>`;
     this.radioEl.classList.add('show');
     const p = this.radioEl.querySelector('p')!;
-    let i = settings.reduceMotion ? s.text.length - 2 : 0;
+    const text = tr(s.text);
+    let i = settings.reduceMotion ? text.length - 2 : 0;
     this.typing = window.setInterval(() => {
       i += 2;
-      p.textContent = s.text.slice(0, i);
-      if (i >= s.text.length) {
+      p.textContent = text.slice(0, i);
+      if (i >= text.length) {
         clearInterval(this.typing);
         this.radioEl.classList.add('done');
       }
     }, 18);
     this.radioEl.classList.remove('done');
-    this.sayTimer = window.setTimeout(() => this.nextSay(), s.ms + s.text.length * 12);
+    this.sayTimer = window.setTimeout(() => this.nextSay(), s.ms + text.length * 12);
   }
 
   dismissRadio() {
@@ -315,7 +329,10 @@ export class Hud {
       this.tipEl.classList.remove('show');
       return;
     }
-    if (this.tipEl.innerHTML !== html) this.tipEl.innerHTML = html;
+    if (this.tipEl.dataset.h !== html) {
+      this.tipEl.dataset.h = html;
+      this.tipEl.innerHTML = html;
+    }
     this.tipEl.classList.add('show');
     const w = this.tipEl.offsetWidth;
     this.tipEl.style.transform = `translate(${Math.min(window.innerWidth - w - 10, x + 16)}px, ${Math.max(10, y - 10)}px)`;

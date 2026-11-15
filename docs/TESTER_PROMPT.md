@@ -19,7 +19,9 @@ Rules
 
 Test plan
 1. Load: open the website. Time how long until the title screen appears. Check the title, that the 3D high bay renders (not black, not white), and that there are no console errors.
-2. Mission select: click Play / Start. You should see 3 missions: Red Horizon (Mars), Giant's Heart (Jupiter), Edge of Light (Pluto), with a spinning real planet image. Check difficulty buttons (Easy / Normal / Hard / Sandbox) and the crew size buttons.
+2. Training: on the title screen click "New? Training (4 min)". Follow the coach card at the top through all 7 steps (walk, pick a launch date, install the sky crane, read the gauges, launch, make a Mission Control call, read the report). Each step must advance by itself when done. Wait about 15 s on one step without doing it: a "Show me" button must appear and must do the step for you. Note the total time. At the end, "Play the full game" must open the mission select. Then return to the title screen.
+2b. Settings and language: on the title screen click "O'zbekcha". Every visible text (title, buttons, mission select, high bay task list, station panels, radio messages, flight captions, Mission Control window, report) must switch to Uzbek. List any text that stays in English or looks broken (cut off, overlapping, placeholder symbols like {} or <1>). Switch back to "English" and check everything returns to English. Open Settings: turn on "Colour-blind safe" (GO becomes blue, NO-GO orange) and "Reduced" motion (no camera shake at launch, no head bob), then turn both off.
+2c. Mission select: click Play / Start. You should see 3 missions: Red Horizon (Mars), Giant's Heart (Jupiter), Edge of Light (Pluto), with a spinning real planet image. Check difficulty buttons (Easy / Normal / Hard / Sandbox) and the crew size buttons.
 3. Fly NASA's design (Mars): choose Red Horizon, then "Fly NASA's design". You arrive in the 3D high bay in first person. Check: gauges at the top (Mass, Power, Δv, Budget, Data, Science), the task list on the left, the minimap, the Flight Director radio box.
 4. Movement: press and hold W / A / S / D (and arrow keys). The view should move. Press V (third person) and V again (first person). Click a task in the task list: the engineer should walk to that station by itself and open its panel.
 5. Every station: open each station panel from the task list or the gauges (Flight Dynamics, Rockets, Power, Avionics/Batteries/Pointing, Fuel, Landing Systems or Orbit Planning, Science Lab, Antennas & Radios, Ground & Budget, Launch Gate). In each panel check: the goal line (✓ / ! / ✕), the "Data" source chips (they must open NASA/ESA/JAXA pages in a new tab), and that cards are readable. Close with the × button and with Esc.
@@ -42,5 +44,6 @@ Report format (write it at the end, in English)
 - Bugs, sorted by severity (Blocker / Major / Minor / Cosmetic). For each: title, steps to reproduce, expected vs actual, screenshot description, console error text if any.
 - Things that confused you as a first-time player (with the screen where it happened).
 - Things that impressed you.
+- If you tested the Uzbek language: a list of untranslated or awkward Uzbek phrases (screen + text).
 Keep it factual. Do not guess at causes in the code.
 ```

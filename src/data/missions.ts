@@ -153,7 +153,7 @@ export const MISSIONS: MissionDef[] = [
       url: 'https://www.esa.int/Science_Exploration/Human_and_Robotic_Exploration/Exploration/ExoMars',
     },
     hints: {
-      trajectory: 'Mars and Earth line up every 26 months. Dark blue islands on the plot are launch windows - outside them no rocket is strong enough. Fast trips hit Mars faster, which the heat shield may not survive.',
+      trajectory: 'Earth and Mars line up every 26 months: launch inside a dark-blue window. Fast trips arrive fast, and the heat shield has a limit.',
       spacecraft: 'Your landing system limits how heavy the rover can be. Airbags are cheap but only for small rovers. Solar is light but dust storms are real.',
       science: 'Every instrument adds science - and mass, power, cost and data. You need 100 science points.',
       comms: 'Mars rovers send most data through relay orbiters overhead (UHF). Make sure your instruments do not produce more data than you can send home.',
@@ -168,7 +168,7 @@ export const MISSIONS: MissionDef[] = [
     level: 'Intermediate',
     tagline: "Orbit Jupiter and map what's hiding beneath its clouds.",
     brief:
-      "Jupiter is a giant ball of hydrogen wrapped in deadly radiation belts. Your orbiter must survive the radiation, make enough power 5 AU from the Sun, and dive close to the cloud tops again and again.",
+      "Jupiter is wrapped in deadly radiation belts, 5 AU from the Sun. Your orbiter must survive them, make enough power and dive close to the clouds again and again.",
     objective: 'Enter Jupiter orbit and collect at least 100 science points in a 2-year science phase.',
     budgetCapM: 1600,
     busMass: 1000,
@@ -246,7 +246,7 @@ export const MISSIONS: MissionDef[] = [
     level: 'Advanced',
     tagline: 'Race to Pluto and reveal a world at the edge of the solar system.',
     brief:
-      'Pluto is 40 times farther from the Sun than Earth. There is no time to slow down - you get one high-speed flyby, then must squeeze every bit of data home across 5 billion km.',
+      'Pluto is 40 times farther from the Sun than Earth. You get one fast flyby, then must send every bit of data home across 5 billion km.',
     objective: 'Fly past Pluto within 16 years of launch and return at least 100 science points.',
     budgetCapM: 1200,
     busMass: 280,
