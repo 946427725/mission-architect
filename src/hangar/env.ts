@@ -380,7 +380,7 @@ export function buildHighBay(quality: 'high' | 'low'): HighBay {
   plat.position.set(6.3, 0, -6.2);
   plat.rotation.y = -0.5;
   g.add(shade(plat));
-  colliders.push({ kind: 'circle', x: 6.3, z: -6.2, r: 1.5 }, { kind: 'circle', x: 7.6, z: -6.9, r: 0.9 });
+  // the deck and the stairs are walkable (see floorHeight); no collider here
 
   // shipping containers
   const crateLabel = new THREE.MeshStandardMaterial({
@@ -505,4 +505,25 @@ export function buildHighBay(quality: 'high' | 'low'): HighBay {
   const keep = new Set<THREE.Object3D>([crane.group, door, installMarker, statusBoard]);
   mergeStatic(g, (o) => keep.has(o) || (o as THREE.Light).isLight === true);
   return { group: g, colliders, crane, statusBoard, door, sun, emissives, pedestal, installMarker };
+}
+
+/** The work platform beside the spacecraft (same place as built above). */
+const PLAT = { x: 6.3, z: -6.2, rot: -0.5, deckH: 1.6, stairEnd: 3.5 };
+
+/**
+ * Height of the walkable floor at (x, z): the platform deck, its stairs (a
+ * ramp from the deck down to the floor), or 0 everywhere else. A walker may
+ * step at most ~0.4 m at a time, so the deck can only be reached by the stairs
+ * and its open sides work like railings.
+ */
+export function floorHeight(x: number, z: number): number {
+  const dx = x - PLAT.x;
+  const dz = z - PLAT.z;
+  const c = Math.cos(PLAT.rot);
+  const s = Math.sin(PLAT.rot);
+  const lx = c * dx - s * dz;
+  const lz = s * dx + c * dz;
+  if (lx >= -1.05 && lx <= 1.3 && Math.abs(lz) <= 0.5) return PLAT.deckH;
+  if (lx > 1.3 && lx <= PLAT.stairEnd && Math.abs(lz) <= 0.5) return Math.max(0, (PLAT.deckH * (PLAT.stairEnd - lx)) / (PLAT.stairEnd - 1.3));
+  return 0;
 }

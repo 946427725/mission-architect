@@ -15,7 +15,7 @@ import type { App } from '../ui/app';
 import { sound } from '../ui/sound';
 import { settings } from '../ui/settings';
 import { buildRealCraft, partCenter, setPartVisible } from './craft';
-import { CRAFT_POS, Collider, HighBay, INSTALL_SPOT, RING_R, ROOM, SPAWN, buildHighBay } from './env';
+import { CRAFT_POS, Collider, HighBay, INSTALL_SPOT, RING_R, ROOM, SPAWN, buildHighBay, floorHeight } from './env';
 import { Engineer } from './engineer';
 import { Hud, Label, Task } from './hud';
 import { M, at, cyl, rod, shade, v3 } from './kit';
@@ -1667,6 +1667,8 @@ export class Hangar {
     if (heavy) want.multiplyScalar(0.7);
     me.vel.x = damp(me.vel.x, want.x, 10, dt);
     me.vel.y = damp(me.vel.y, want.y, 10, dt);
+    const prevX = me.pos.x;
+    const prevZ = me.pos.z;
     me.pos.x += me.vel.x * dt;
     me.pos.z += me.vel.y * dt;
     this.collide(me.pos, 0.32);
@@ -1681,6 +1683,19 @@ export class Hangar {
           me.pos.z = o.pos.z + (dz / d) * 0.7;
         }
       }
+    // the work platform: climb its stairs; never step up or down more than 0.4 m
+    // (so the deck is reached only by the stairs and its sides act as railings)
+    const hPrev = floorHeight(prevX, prevZ);
+    const ok = (x: number, z: number) => Math.abs(floorHeight(x, z) - hPrev) <= 0.4;
+    if (!ok(me.pos.x, me.pos.z)) {
+      if (ok(me.pos.x, prevZ)) me.pos.z = prevZ;
+      else if (ok(prevX, me.pos.z)) me.pos.x = prevX;
+      else {
+        me.pos.x = prevX;
+        me.pos.z = prevZ;
+      }
+    }
+    me.pos.y = damp(me.pos.y, floorHeight(me.pos.x, me.pos.z), 16, dt);
     const speed = me.vel.length();
     if (this.fp) {
       // auto-walking: look where you are going; otherwise the body follows the view
@@ -1783,7 +1798,7 @@ export class Hangar {
   private firstPersonCamera(me: Walker, speed: number, dt: number) {
     me.eng.setBodyVisible(false);
     me.eng.fpHands.visible = me.eng.carrying;
-    const eye = new THREE.Vector3(me.pos.x, 1.62, me.pos.z);
+    const eye = new THREE.Vector3(me.pos.x, 1.62 + me.pos.y, me.pos.z);
     if (this.fpLookAt) {
       const d = this.fpLookAt.clone().sub(eye);
       this.fpYaw += wrapA(Math.atan2(d.x, d.z) - this.fpYaw) * (1 - Math.exp(-dt * 5));
@@ -1822,7 +1837,7 @@ export class Hangar {
       this.camera.fov = 52;
       this.camera.updateProjectionMatrix();
     }
-    const target = new THREE.Vector3(me.pos.x, 1.45, me.pos.z);
+    const target = new THREE.Vector3(me.pos.x, 1.45 + me.pos.y, me.pos.z);
     let yaw = this.camYaw;
     let dist = this.camDist;
     let pitch = this.camPitch;
